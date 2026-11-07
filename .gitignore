@@ -1,0 +1,15 @@
+node_modules/
+# Live data: the database, the encrypted CV vault, backups and the master key. Never commit these.
+data/
+demo-data/
+*.db
+*.db-shm
+*.db-wal
+*.gdv
+master.key
+.env
+# Server-specific deployment settings
+deploy/local/
+mobile/android/
+mobile/ios/
+mobile/node_modules/

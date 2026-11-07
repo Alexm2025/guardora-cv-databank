@@ -1,0 +1,25 @@
+{
+  "name": "guardora",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Guardora — The Guardians CV Databank: collects every CV from the HR mailbox and the website into one secure, searchable databank.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test tests/*.test.js",
+    "demo": "node tools/seed-demo.js",
+    "icons": "node tools/make-icons.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "express": "^5.3.0",
+    "imapflow": "^2.11.0",
+    "multer": "^2.5.0",
+    "pdfjs-dist": "^6.5.438",
+    "qrcode": "^1.5.4"
+  }
+}
