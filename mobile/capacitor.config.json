@@ -1,0 +1,12 @@
+{
+  "appId": "com.guardiansindia.guardora",
+  "appName": "Guardora",
+  "webDir": "www",
+  "server": {
+    "url": "https://cv.guardiansindia.com",
+    "cleartext": false,
+    "allowNavigation": ["cv.guardiansindia.com"]
+  },
+  "android": { "allowMixedContent": false, "backgroundColor": "#0a1511" },
+  "ios": { "contentInset": "automatic", "backgroundColor": "#0a1511", "limitsNavigationsToAppBoundDomains": true }
+}

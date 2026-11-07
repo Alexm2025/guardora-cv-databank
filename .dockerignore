@@ -1,0 +1,7 @@
+node_modules
+data
+demo-data
+.git
+.env
+tests
+mobile

@@ -1,0 +1,21 @@
+{
+  "name": "guardora-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android and iPhone app for Guardora. It opens your Guardora server inside a native app shell.",
+  "scripts": {
+    "add:android": "cap add android",
+    "add:ios": "cap add ios",
+    "sync": "cap sync",
+    "android": "cap open android",
+    "ios": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0"
+  }
+}

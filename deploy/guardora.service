@@ -1,0 +1,25 @@
+# systemd service: keeps Guardora running day and night, restarts it after crashes and reboots.
+# Installed by deploy/setup-ubuntu.sh to /etc/systemd/system/guardora.service
+[Unit]
+Description=Guardora CV Databank
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=guardora
+Group=guardora
+WorkingDirectory=/opt/guardora
+EnvironmentFile=/etc/guardora/guardora.env
+ExecStart=/usr/bin/node server/index.js
+Restart=always
+RestartSec=5
+# Hardening: the app can only write to its data folder.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/guardora
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
