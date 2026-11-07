@@ -5,6 +5,7 @@ import {
 } from '../ui.js';
 import { api, fetchBlob, qs } from '../api.js';
 import { renderPdf } from '../pdfview.js';
+import { openShareDialog } from './share-dialog.js';
 
 const STATUS_LABELS = { new: 'New', reviewing: 'Reviewing', shortlisted: 'Shortlisted', interview: 'Interview', placed: 'Placed', on_hold: 'On hold', rejected: 'Rejected' };
 const GENDERS = { male: 'Male', female: 'Female', other: 'Other' };
@@ -28,6 +29,7 @@ export function openCandidate(container, id, { user, meta, query, onChange, onCl
   async function load() {
     try {
       data = await api('/candidates/' + id);
+      data.shares = (await api('/candidates/' + id + '/shares')).items;
     } catch (err) {
       clear(body, h('div', { class: 'empty' }, icon('users'), h('h3', {}, 'Not found'), h('p', {}, err.message)));
       clear(head);
@@ -92,6 +94,8 @@ export function openCandidate(container, id, { user, meta, query, onChange, onCl
         c.email ? h('a', { class: 'btn sm ghost icon', href: 'mailto:' + c.email, title: 'Email ' + c.email, 'aria-label': 'Email' }, icon('mail', 'sm')) : null,
         c.phone ? h('a', { class: 'btn sm ghost icon', href: 'tel:' + c.phone.replace(/\s/g, ''), title: 'Call ' + c.phone, 'aria-label': 'Call' }, icon('phone', 'sm')) : null,
         c.phone ? h('a', { class: 'btn sm ghost', href: 'https://wa.me/' + c.phone.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1'), target: '_blank', rel: 'noopener noreferrer', title: 'WhatsApp' }, 'WhatsApp') : null,
+        h('button', { class: 'btn sm', disabled: !canEdit || c.blacklisted, title: 'Share this profile with a company, without contact details',
+          onclick: () => openShareDialog({ ids: [id], label: c.name || 'this candidate', onDone: () => { load(); onChange(); } }) }, icon('send', 'sm'), 'Share'),
         h('button', { class: 'btn sm' + (c.blacklisted ? ' danger' : ''), disabled: !canEdit, onclick: toggleBlacklist, title: 'Blacklist (b)' }, icon('ban', 'sm'), c.blacklisted ? 'Unblacklist' : 'Blacklist'),
         moreMenu()),
       c.blacklisted ? h('div', { class: 'banner bad' }, icon('ban'), h('div', {}, h('b', {}, 'Blacklisted ' + fmtDate(c.blacklisted_at) + '. '), c.blacklist_reason)) : null,
@@ -222,6 +226,10 @@ export function openCandidate(container, id, { user, meta, query, onChange, onCl
       section('Work history', c.experience.length ? c.experience.map((r) => h('div', { class: 'job-row' },
         h('div', {}, h('b', {}, r.title || r.company || 'Role'), h('div', { class: 'small muted' }, r.title && r.company ? r.company : r.line)),
         h('div', { class: 'small muted nowrap' }, r.start + ' – ' + (r.end === 'present' ? 'Present' : r.end)))) : h('p', { class: 'muted small' }, 'No dated work history found in the CV.')),
+      data.shares.length ? section('Shared with companies', data.shares.map((s) => h('div', { class: 'row wrap', style: { padding: '6px 0', borderBottom: '1px dashed var(--line)' } },
+        h('a', { class: 'grow', href: '/shares', 'data-link': '' }, h('b', {}, s.company), s.title ? ' — ' + s.title : '', h('div', { class: 'tiny muted' }, fmtDate(s.created_at) + (s.revoked ? ' · withdrawn' : ''))),
+        s.feedback ? h('span', { class: 'pill ' + ({ interested: 'ok', maybe: 'warn', not_suitable: 'bad' })[s.feedback] }, ({ interested: 'Interested', maybe: 'Maybe', not_suitable: 'Not suitable' })[s.feedback]) : h('span', { class: 'tiny muted' }, 'No answer yet'),
+        s.feedback_note ? h('div', { class: 'small', style: { width: '100%' } }, '"' + s.feedback_note + '"') : null))) : null,
       data.duplicates.length ? section('Possible duplicates', data.duplicates.map((d) => h('div', { class: 'row wrap', style: { padding: '8px 0', borderBottom: '1px dashed var(--line)' } },
         h('div', { class: 'grow' }, h('a', { href: '/candidates/' + d.other.id + location.search, 'data-link': '' }, h('b', {}, d.other.name || '#' + d.other.id)),
           h('div', { class: 'small muted' }, [d.other.email, d.other.phone, d.other.city].filter(Boolean).join(' · ') + ' — ' + d.reasons.join('; '))),

@@ -66,6 +66,9 @@ api.use('/account', auth.me);
 api.use('/', require('./routes/candidates'));
 api.use('/', require('./routes/insights'));
 api.use('/', require('./routes/admin'));
+const shares = require('./routes/shares');
+api.use('/', shares.router);
+api.use('/public', shares.publicRouter);
 api.use((req, res, next) => next(new HttpError(404, 'Not found.')));
 app.use('/api', api);
 
@@ -85,6 +88,11 @@ app.use(express.static(config.PUBLIC_DIR, {
     else res.set('Cache-Control', 'public, max-age=3600');
   }
 }));
+// Shortlist page for client companies (no account; the link itself is the key).
+app.get('/s/:token', (req, res) => {
+  res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+  res.sendFile(path.join(config.PUBLIC_DIR, 'share.html'));
+});
 // Single-page app: every other address loads the app, which shows the right screen.
 app.get(/^\/(?!api\/|vendor\/).*/, (req, res) => {
   res.set('Cache-Control', 'no-cache');

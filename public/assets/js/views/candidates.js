@@ -6,6 +6,7 @@ import {
 import { api, qs } from '../api.js';
 import { openCandidate } from './candidate-panel.js';
 import { uploadFiles } from '../app.js';
+import { openShareDialog } from './share-dialog.js';
 
 const VIEWS = [
   ['all', 'All'], ['active', 'To do'], ['starred', 'Starred'], ['done', 'Done'], ['returned', 'Came back'],
@@ -308,6 +309,7 @@ export async function render(main, ctx) {
     const parts = [h('span', {}, h('b', {}, fmtNum(total)), ' candidate' + (total === 1 ? '' : 's'), tookMs != null ? ' · ' + tookMs + ' ms' : '')];
     if (picked.size && canEdit) {
       parts.push(h('span', { class: 'pill gold' }, picked.size + ' selected'),
+        h('button', { class: 'btn primary sm', onclick: () => openShareDialog({ ids: [...picked], label: picked.size + ' candidate' + (picked.size > 1 ? 's' : ''), onDone: () => { picked.clear(); load(true); } }) }, icon('send', 'sm'), 'Share with company'),
         h('button', { class: 'btn sm', onclick: () => bulk('done') }, icon('check', 'sm'), 'Mark done'),
         h('button', { class: 'btn sm', onclick: async () => { const tag = await promptBox('Tag ' + picked.size + ' candidates', { label: 'Tag' }); if (tag) bulk('tag', { tag }); } }, 'Tag'),
         h('button', { class: 'btn sm', onclick: () => bulk('star') }, icon('star', 'sm'), 'Star'),

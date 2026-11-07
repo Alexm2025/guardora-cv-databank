@@ -36,6 +36,7 @@ an iPhone; it installs like an app.
 | **Candidates** | Instant search across everything in every CV (names, skills, companies, colleges, phone, email). Filters for age, gender, location, education and degree, skills, experience, status, source, date received and tags. The CV opens beside the list. |
 | **Fraud alerts** | Every suspicious change, with severity. Mark each one as checked. |
 | **Duplicates** | Possible duplicate records: merge them, or keep them separate |
+| **Shortlists** | Candidates you sent to client companies: opened or not, and each company's answer (Interested / Maybe / Not suitable) |
 | **Job match** | Paste a client's job description to get people ranked by fit, with matched and missing skills |
 | **Sources** | Live status of the mailbox and website feeds, and a log of every file imported or skipped |
 | **Settings** | Mailbox, website, team accounts, two-step sign-in, backups, audit log |
@@ -43,6 +44,14 @@ an iPhone; it installs like an app.
 On every candidate you can tick **Done**, star and rate them, set a status (New → Reviewing → Shortlisted →
 Interview → Placed), **Blacklist** them with a reason, add notes, tag them, email, call or WhatsApp them, merge
 or split records, and (owner only) erase all of their data.
+
+**Share with company.** Tick candidates (or open one) and press **Share with company**. Guardora makes a branded
+shortlist for the client with each person's professional profile and a cleaned copy of their CV. Phone numbers,
+emails, home address, LinkedIn and other links, Aadhaar/PAN, date of birth and family names are always removed,
+and names show as "Priya S." or a code (GD-01042). Employer names and current CTC are hidden unless you allow them,
+and the original CV files are never sent, so companies have to come through you. Send it as a **PDF** (works
+anywhere), or as a **private link** with an optional PIN and an expiry date. On the link, the company answers per
+candidate and you see it in Guardora. Links need Guardora to be online on a server; on an office PC, use the PDF.
 
 The **To do**, **Done**, **Came back**, **Flagged**, **Blacklisted** and **Needs reading** tabs are one tap away.
 You can save any combination of filters, and export the current list to Excel (CSV).
@@ -173,4 +182,5 @@ deploy/             Ubuntu setup, systemd, nginx
 mobile/             Capacitor wrapper for store apps
 ```
 
-`npm test` runs everything against throwaway data folders.
+`npm test` runs everything against throwaway data folders. After an update that improves CV reading, run
+`node tools/reparse-all.js` (with Guardora stopped) to re-read all stored CVs; hand corrections are kept.

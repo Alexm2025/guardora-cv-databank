@@ -242,6 +242,45 @@ const MIGRATIONS = [
     tokenize = "unicode61 remove_diacritics 2 tokenchars '+#.'",
     prefix = '2 3'
   );
+  `,
+  // 2: shortlists shared with client companies, without the candidates' contact details.
+  `
+  CREATE TABLE shares (
+    id INTEGER PRIMARY KEY,
+    token_hash TEXT NOT NULL UNIQUE,                  -- the link's secret, hashed (for lookup)
+    token_enc TEXT NOT NULL,                          -- the link's secret, encrypted (to show the link again)
+    company TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL DEFAULT '',
+    options TEXT NOT NULL DEFAULT '{}',               -- what the company may see
+    pin_hash TEXT NOT NULL DEFAULT '',
+    expires_at TEXT NOT NULL,
+    revoked INTEGER NOT NULL DEFAULT 0,
+    views INTEGER NOT NULL DEFAULT 0,
+    last_viewed_at TEXT,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE share_items (
+    share_id INTEGER NOT NULL REFERENCES shares(id) ON DELETE CASCADE,
+    candidate_id INTEGER NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0,
+    feedback TEXT NOT NULL DEFAULT '',                -- interested | maybe | not_suitable
+    feedback_note TEXT NOT NULL DEFAULT '',
+    feedback_at TEXT,
+    PRIMARY KEY (share_id, candidate_id)
+  );
+  CREATE INDEX idx_share_items_candidate ON share_items(candidate_id);
+
+  CREATE TABLE share_views (
+    id INTEGER PRIMARY KEY,
+    share_id INTEGER NOT NULL REFERENCES shares(id) ON DELETE CASCADE,
+    ip TEXT NOT NULL DEFAULT '',
+    agent TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX idx_share_views_share ON share_views(share_id, id);
   `
 ];
 

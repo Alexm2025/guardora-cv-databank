@@ -149,10 +149,57 @@ test('account locks after repeated wrong passwords', async () => {
   assert.equal((await call(x, 'POST', '/api/login', { email: 'viewer@test.local', password: 'viewer-password-1' })).status, 429);
 });
 
+test('shortlists shared with a company never contain contact details', async () => {
+  const lines = fs.readFileSync(path.join(__dirname, 'fixtures', 'cv-contacts.txt'), 'utf8').split(/\r?\n/);
+  const form = new FormData();
+  form.append('files', new Blob([makePdf(lines)], { type: 'application/pdf' }), 'Priya CV.pdf');
+  const up = await call(owner, 'POST', '/api/upload', form);
+  const priya = up.data.results[0].candidateId;
+
+  assert.equal((await call(viewer, 'POST', '/api/shares', { company: 'X', candidateIds: [priya] })).status, 403);
+  const made = await call(owner, 'POST', '/api/shares', { company: 'ABC Logistics', title: 'Accounts', candidateIds: [priya, candidateId], pin: '4321', options: { nameMode: 'initials' } });
+  assert.equal(made.status, 200);
+  const token = made.data.link.split('/s/')[1];
+  const company = jar();
+
+  assert.equal((await fetch(BASE + '/s/' + token)).status, 200);
+  const noPin = await call(company, 'GET', '/api/public/shares/' + token);
+  assert.equal(noPin.status, 401);
+  assert.equal(noPin.data.pinRequired, true);
+  assert.equal((await call(company, 'GET', '/api/public/shares/' + token, undefined, { headers: { 'X-Share-Pin': '1111' } })).status, 401);
+  const seen = await call(company, 'GET', '/api/public/shares/' + token, undefined, { headers: { 'X-Share-Pin': '4321' } });
+  assert.equal(seen.status, 200);
+  assert.equal(seen.data.candidates.length, 2);
+  const p = seen.data.candidates.find((c) => c.cv.includes('Accounts'));
+  assert.equal(p.name, 'Priya S.');
+  const json = JSON.stringify(seen.data);
+  for (const secret of ['98765', '43210', '9123456780', 'priya.sharma92', 'linkedin', 'Sharma', 'Ramesh', '1996', 'ABCDE1234F', '1234 5678 9012', '421201', 'Mahindra', 'zoya.f@', '90000 12345']) {
+    assert.ok(!json.includes(secret), 'company must not see "' + secret + '"');
+  }
+
+  // The team's own preview does not count as a company view.
+  await call(owner, 'GET', '/api/public/shares/' + token);
+  const list = (await call(owner, 'GET', '/api/shares')).data.items[0];
+  assert.equal(list.views, 1);
+
+  const fb = await call(company, 'POST', '/api/public/shares/' + token + '/feedback', { code: p.code, feedback: 'interested', note: 'Tuesday 11am' }, { headers: { 'X-Share-Pin': '4321' } });
+  assert.equal(fb.status, 200);
+  const after = (await call(owner, 'GET', '/api/shares')).data.items[0];
+  assert.equal(after.feedback.interested, 1);
+  const history = (await call(owner, 'GET', '/api/candidates/' + priya)).data.events.map((e) => e.message).join(' | ');
+  assert.match(history, /ABC Logistics: Interested — "Tuesday 11am"/);
+
+  await call(owner, 'POST', '/api/shares/' + list.id, { revoked: true });
+  assert.equal((await call(company, 'GET', '/api/public/shares/' + token, undefined, { headers: { 'X-Share-Pin': '4321' } })).status, 410);
+  assert.equal((await call(company, 'GET', '/api/public/shares/not-a-real-token-at-all-123')).status, 404);
+});
+
 test('owner can erase a person completely', async () => {
+  const vaultDir = path.join(DATA, 'vault');
+  const files = () => fs.readdirSync(vaultDir).flatMap((d) => fs.readdirSync(path.join(vaultDir, d)));
+  const before = files().length;
   assert.equal((await call(owner, 'DELETE', '/api/candidates/' + candidateId)).status, 200);
   assert.equal((await call(owner, 'GET', '/api/candidates/' + candidateId)).status, 404);
   assert.equal((await call(owner, 'GET', '/api/cvs/' + cvId + '/file')).status, 404);
-  const vaultDir = path.join(DATA, 'vault');
-  assert.equal(fs.readdirSync(vaultDir).flatMap((d) => fs.readdirSync(path.join(vaultDir, d))).length, 0);
+  assert.equal(files().length, before - 1, 'their CV file is removed from the vault');
 });

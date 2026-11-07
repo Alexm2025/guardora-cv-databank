@@ -227,9 +227,12 @@ export async function render(main, ctx) {
   async function general() {
     const s = (await api('/settings')).general;
     const domains = h('input', { class: 'input', value: s.ownDomains });
+    const shareEmail = h('input', { class: 'input', type: 'email', value: s.shareEmail });
+    const sharePhone = h('input', { class: 'input', value: s.sharePhone, placeholder: 'e.g. +91 22 1234 5678' });
     clear(body, card('General', null,
       field('Your own email domains', domains, 'Mail from these addresses is never treated as a candidate (e.g. your own forwards). The applicant is taken from Reply-To or the CV instead.'),
-      h('div', {}, h('button', { class: 'btn primary', onclick: async () => { await api('/settings/general', { method: 'PUT', body: { ownDomains: domains.value } }); toast('Saved'); } }, 'Save')),
+      h('div', { class: 'form-grid' }, field('Contact email on shortlists', shareEmail, 'Companies are asked to contact you here, not the candidates.'), field('Contact phone on shortlists', sharePhone)),
+      h('div', {}, h('button', { class: 'btn primary', onclick: async () => { await api('/settings/general', { method: 'PUT', body: { ownDomains: domains.value, shareEmail: shareEmail.value, sharePhone: sharePhone.value } }); toast('Saved'); } }, 'Save')),
       h('div', { class: 'banner info' }, icon('phone'), h('div', {}, h('b', {}, 'Install on phones and laptops. '),
         'Open this address in Chrome (Android, Windows, Mac) and choose "Install app", or in Safari on iPhone choose Share → "Add to Home Screen". On Android you can then share a CV file from WhatsApp or Gmail straight to Guardora.'))));
   }

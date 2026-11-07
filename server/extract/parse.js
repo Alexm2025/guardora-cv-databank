@@ -231,10 +231,18 @@ function findEducation(lines, sections) {
     for (const [degree, level, re] of DEGREES) {
       if (!re.test(line)) continue;
       if (level <= 3 && !inRanges(i, eduRanges) && !/\b(board|school|passed|percentage|marks|%|cgpa|ssc|hsc)\b/i.test(line + ' ' + (lines[i + 1] || ''))) break;
-      const around = [line, lines[i + 1] || '', lines[i + 2] || ''].join('  ');
-      const instSeg = [line, lines[i + 1] || '', lines[i + 2] || ''].flatMap(segments).find((x) => INSTITUTION_RE.test(x) && !re.test(x));
-      const years = [...(line + ' ' + (lines[i + 1] || '')).matchAll(/\b(19[6-9]\d|20[0-4]\d)\b/g)].map((m) => Number(m[1]));
-      const inst = instSeg ? [instSeg, instSeg.replace(/\s*[-–]?\s*(19|20)\d{2}.*$/, '')] : around.match(INSTITUTION_RE);
+      // The college is on the same line, or on the next lines only while they do not name another degree.
+      const nearby = [line];
+      for (const next of [lines[i + 1] || '', lines[i + 2] || '']) {
+        if (!next || DEGREES.some(([, , r]) => r.test(next))) break;
+        nearby.push(next);
+      }
+      const instSeg = nearby.flatMap(segments).find((x) => INSTITUTION_RE.test(x) && !re.test(x)) ||
+        segments(line).find((x) => !re.test(x) && /[A-Za-z]{3}/.test(x) && !/^\d|%|\b(19|20)\d{2}\b|cgpa|gpa|percentage|marks|pursuing|first class|distinction/i.test(x));
+      // Year and marks come from the same nearby lines, never from the next degree's line.
+      const years = [...nearby.join(' ').matchAll(/\b(19[6-9]\d|20[0-4]\d)\b/g)].map((m) => Number(m[1]));
+      const inst = instSeg ? [instSeg, instSeg.replace(/\s*[-–]?\s*\b(19|20)\d{2}\b.*$/, '')] : nearby.join('  ').match(INSTITUTION_RE);
+      const around = nearby.join('  ');
       const score = around.match(/(\d{2}(?:\.\d{1,2})?)\s*%/) || around.match(/\b(?:cgpa|gpa|cpi|sgpa)\s*[:\-–]?\s*(\d{1,2}(?:\.\d{1,2})?)/i);
       const field = (line.match(new RegExp(re.source + '[\\s.]*(?:\\(([^)]{2,40})\\)|in\\s+([A-Za-z &]{3,40}))', 'i')) || []).slice(-2).filter(Boolean)[0] || '';
       entries.push({

@@ -13,6 +13,7 @@ const VIEWS = {
   alerts: () => import('./views/alerts.js'),
   duplicates: () => import('./views/duplicates.js'),
   match: () => import('./views/match.js'),
+  shares: () => import('./views/shares.js'),
   inbox: () => import('./views/inbox.js'),
   settings: () => import('./views/settings.js')
 };
@@ -20,6 +21,7 @@ const VIEWS = {
 const NAV = [
   { path: '', label: 'Overview', icon: 'home' },
   { path: 'candidates', label: 'Candidates', icon: 'users' },
+  { path: 'shares', label: 'Shortlists', icon: 'send' },
   { path: 'alerts', label: 'Fraud alerts', icon: 'alert', count: 'alerts' },
   { path: 'duplicates', label: 'Duplicates', icon: 'copy', count: 'duplicates' },
   { path: 'match', label: 'Job match', icon: 'target' },
@@ -101,11 +103,11 @@ function layout() {
   const side = h('aside', { class: 'side' },
     h('a', { class: 'brand', href: '/', 'data-link': '' }, h('img', { src: '/icons/icon-192.png', alt: '' }), h('span', {}, h('b', {}, 'Guardora'), h('small', {}, 'CV Databank'))),
     h('nav', { class: 'nav', 'aria-label': 'Main' },
-      NAV.slice(0, 2).map((n) => navLink(n)),
+      NAV.slice(0, 3).map((n) => navLink(n)),
       h('div', { class: 'nav-label' }, 'Checks'),
-      NAV.slice(2, 5).map((n) => navLink(n)),
+      NAV.slice(3, 6).map((n) => navLink(n)),
       h('div', { class: 'nav-label' }, 'System'),
-      NAV.slice(5).map((n) => navLink(n))),
+      NAV.slice(6).map((n) => navLink(n))),
     h('div', { class: 'side-foot' },
       h('div', { class: 'source-mini', id: 'src-mini' }),
       h('div', { class: 'me' },

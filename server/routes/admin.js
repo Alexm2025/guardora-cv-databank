@@ -69,7 +69,11 @@ router.get('/settings', owner, (req, res) => {
       hasPassword: Boolean(decryptSecret(getSetting('website_pass', ''))),
       accounts: getSetting('website_accounts', '1') === '1'
     },
-    general: { ownDomains: getSetting('own_domains', 'guardiansindia.com') }
+    general: {
+      ownDomains: getSetting('own_domains', 'guardiansindia.com'),
+      shareEmail: getSetting('share_contact_email', 'hr@guardiansindia.com'),
+      sharePhone: getSetting('share_contact_phone', '')
+    }
   });
 });
 
@@ -134,6 +138,9 @@ router.post('/settings/website/test', owner, async (req, res) => {
 router.put('/settings/general', owner, (req, res) => {
   const domains = str((req.body || {}).ownDomains, 500).toLowerCase().split(/[\s,]+/).filter((d) => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(d));
   setSetting('own_domains', domains.join(', ') || 'guardiansindia.com');
+  const b = req.body || {};
+  if ('shareEmail' in b) setSetting('share_contact_email', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str(b.shareEmail)) ? str(b.shareEmail, 160) : 'hr@guardiansindia.com');
+  if ('sharePhone' in b) setSetting('share_contact_phone', str(b.sharePhone, 40));
   audit(req, 'settings.general');
   res.json({ ok: true });
 });
