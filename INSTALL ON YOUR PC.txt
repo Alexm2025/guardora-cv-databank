@@ -1,0 +1,27 @@
+GUARDORA - INSTALL ON YOUR PC
+=============================
+
+Use the PC that stays switched on the most. Guardora collects CVs while that PC is on,
+and catches up on everything it missed (emails and website applications) when it is turned back on.
+
+1. Unzip this folder somewhere permanent, for example  C:\Guardora
+   (not in Downloads, and not on a USB stick).
+
+2. Double-click  "Install Guardora background.bat"
+   - It installs Node.js if needed (click Yes if Windows asks), then Guardora.
+   - Your browser opens at http://localhost:8787
+
+3. Create your owner account (your name, email and a password of 10+ characters).
+
+4. On the Overview page, click "Connect":
+   - Website applications: the email and password you use at guardiansindia.com/admin
+   - HR mailbox: follow the 3 steps on the screen to make a Gmail "app password" for hr@guardiansindia.com
+
+5. Copy  data\master.key  to a USB stick or password manager and keep it safe.
+   Without it, nobody (not even you) can open the stored CVs or backups.
+
+Recommended on that PC: Settings > System > Power > Screen and sleep > "When plugged in, put my device to sleep" = Never.
+
+Every day after that you just open http://localhost:8787 (or install it from Chrome's menu: "Install Guardora").
+
+To stop Guardora completely: double-click "Remove Guardora background.bat" (your data is kept).

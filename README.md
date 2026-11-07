@@ -69,6 +69,13 @@ node tools/seed-demo.js 150
 npm start
 ```
 
+## Install on the PC you will use (Windows)
+
+Copy the `Guardora-setup.zip` to that PC (or clone the GitHub repo), unzip it somewhere permanent such as
+`C:\Guardora`, and double-click **Install Guardora background.bat**. It installs Node.js if needed, installs
+Guardora, makes it start hidden at every Windows sign-in, and opens it in the browser. Step-by-step:
+`INSTALL ON YOUR PC.txt`. To stop it: **Remove Guardora background.bat** (data is kept).
+
 ## Connect the HR mailbox
 
 `guardiansindia.com` mail runs on Google Workspace. Guardora signs in over IMAP with an **app password**, not the
