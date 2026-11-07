@@ -13,3 +13,6 @@ deploy/local/
 mobile/android/
 mobile/ios/
 mobile/node_modules/
+
+# Build output for copying to another PC
+Guardora-setup.zip
