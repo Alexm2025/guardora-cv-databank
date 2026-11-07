@@ -43,7 +43,7 @@ const PDF = makePdf(['Zoya Fernandes', 'zoya.f@example.org', '+91 90000 12345', 
 test.before(async () => {
   server = spawn(process.execPath, ['server/index.js'], {
     cwd: path.join(__dirname, '..'),
-    env: { ...process.env, DATA_DIR: DATA, PORT: String(PORT), DISABLE_SOURCES: '1', SETUP_CODE: 'TESTSETUP9', MASTER_KEY: '33'.repeat(32), NODE_ENV: 'test' },
+    env: { ...process.env, DATA_DIR: DATA, PORT: String(PORT), DISABLE_SOURCES: '1', TRUST_PROXY: '1', SETUP_CODE: 'TESTSETUP9', MASTER_KEY: '33'.repeat(32), NODE_ENV: 'test' },
     stdio: 'ignore'
   });
   for (let i = 0; i < 50; i++) {

@@ -181,9 +181,9 @@ function formWith(fields, button, onSubmit) {
 
 const field = (label, attrs, hint) => h('label', { class: 'field' }, h('span', {}, label), h('input', { class: 'input', ...attrs }), hint ? h('span', { class: 'hint' }, hint) : null);
 
-function showSetup() {
+function showSetup(needsCode) {
   authCard('Set up Guardora', 'Create the owner account. You can add your team later.', formWith([
-    field('Setup code', { name: 'setupCode', autocomplete: 'off', required: true, autocapitalize: 'characters' }, 'Shown in the Guardora server window or log.'),
+    needsCode ? field('Setup code', { name: 'setupCode', autocomplete: 'off', required: true, autocapitalize: 'characters' }, 'Shown in the Guardora server window or log.') : null,
     field('Your name', { name: 'name', autocomplete: 'name', required: true }),
     field('Email', { name: 'email', type: 'email', autocomplete: 'username', required: true }),
     field('Password', { name: 'password', type: 'password', autocomplete: 'new-password', required: true, minlength: 10 }, 'At least 10 characters. A short sentence works well.')
@@ -313,7 +313,7 @@ async function boot() {
   try {
     const s = await api('/session');
     if (s.user) start(s.user);
-    else if (s.setupNeeded) showSetup();
+    else if (s.setupNeeded) showSetup(s.setupCodeNeeded);
     else showLogin();
   } catch (err) {
     clear(root, h('div', { class: 'auth' }, h('div', { class: 'card auth-card' }, h('h2', {}, 'Cannot reach Guardora'), h('p', { class: 'muted' }, err.message),

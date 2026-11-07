@@ -105,7 +105,9 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 
 /* ---------- Start ---------- */
 
+const PID_FILE = path.join(config.DATA_DIR, 'guardora.pid');
 const server = app.listen(config.PORT, config.HOST, () => {
+  require('node:fs').writeFileSync(PID_FILE, String(process.pid)); // lets "Remove Guardora background.bat" stop exactly this process
   console.log('Guardora is running on http://localhost:' + config.PORT + (config.PRODUCTION ? ' (production)' : ''));
   if (!get('SELECT 1 AS x FROM users LIMIT 1')) {
     console.log('\n  First start: open the address above and create your owner account.');
@@ -123,6 +125,7 @@ async function shutdown() {
   if (closing) return;
   closing = true;
   console.log('Stopping Guardora…');
+  require('node:fs').rmSync(PID_FILE, { force: true });
   server.close();
   website.stop();
   await Promise.race([mailbox.stop(), new Promise((r) => setTimeout(r, 3000))]);

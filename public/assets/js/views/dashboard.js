@@ -28,7 +28,7 @@ export async function render(main, ctx) {
     h('div', { class: 'page-head' }, h('div', { class: 'grow' }, h('h1', {}, greet + ', ' + ctx.user.name.split(' ')[0]),
       h('p', {}, fmtNum(t.candidates) + ' people and ' + fmtNum(t.cvs) + ' CVs in the databank.')),
     h('a', { class: 'btn primary', href: '/candidates', 'data-link': '' }, icon('search'), 'Search the databank')),
-    sourceStrip(d.sources),
+    sourceStrip(d.sources, ctx.user.role === 'owner'),
     h('div', { class: 'kpis' },
       kpi('New people this week', t.new7, fmtNum(t.new30) + ' in 30 days', '/candidates?from=' + daysAgo(7), 'users'),
       kpi('CVs this week', t.cvs7, 'including new versions', '/candidates?from=' + daysAgo(7), 'file'),
@@ -63,16 +63,18 @@ export async function render(main, ctx) {
 
 const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
 
-function sourceStrip(s) {
-  const item = (name, st, ic) => {
+function sourceStrip(s, owner) {
+  const item = (name, st, ic, settingsPage) => {
     const tone = { watching: 'ok', syncing: 'busy', connecting: 'busy', error: 'bad' }[st.state] || '';
-    return h('a', { class: 'card', href: '/inbox', 'data-link': '', style: { display: 'flex', gap: '12px', alignItems: 'center', padding: '12px 16px', textDecoration: 'none', flex: '1', minWidth: '260px' } },
+    // Not connected yet, or a sign-in problem: take the owner straight to the page that fixes it.
+    const fix = owner && (st.state === 'disabled' || (st.state === 'error' && /sign-in/i.test(st.message)));
+    return h('a', { class: 'card', href: fix ? '/settings/' + settingsPage : '/inbox', 'data-link': '', style: { display: 'flex', gap: '12px', alignItems: 'center', padding: '12px 16px', textDecoration: 'none', flex: '1', minWidth: '260px' } },
       h('span', { class: 'src-icon', style: { width: '36px', height: '36px' } }, icon(ic)),
       h('span', { class: 'grow' }, h('b', { class: 'small' }, name), h('div', { class: 'tiny muted ellipsis' }, st.message)),
-      h('span', { class: 'dot ' + tone }));
+      fix ? h('span', { class: 'btn sm primary' }, st.state === 'disabled' ? 'Connect' : 'Fix') : h('span', { class: 'dot ' + tone }));
   };
   return h('div', { class: 'row wrap', style: { marginBottom: '16px', gap: '12px' } },
-    item('HR mailbox', s.mailbox, 'mail'), item('Website applications', s.website, 'globe'));
+    item('HR mailbox', s.mailbox, 'mail', 'mailbox'), item('Website applications', s.website, 'globe', 'website'));
 }
 
 // Single-series bar chart: one hue, bars anchored to the baseline with 4px rounded tops, hover tooltip per bar.

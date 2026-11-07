@@ -8,21 +8,33 @@ const {
   HttpError, createSession, destroySession, requireRole, rateLimit, checkPassword, checkTotp, audit, publicUser
 } = require('../auth');
 const { SETUP_TOKEN } = require('../setup-token');
+const { TRUST_PROXY } = require('../config');
 
 const router = express.Router();
 const loginLimit = rateLimit(20, 15 * 60e3);
 const str = (v, max = 200) => String(v == null ? '' : v).trim().slice(0, max);
 
+// Someone sitting at the computer that runs Guardora (not through a proxy or the network).
+function onThisComputer(req) {
+  const ip = String(req.socket.remoteAddress || '');
+  const loopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  return loopback && !TRUST_PROXY && !req.headers['x-forwarded-for'] && !req.headers['x-forwarded-host'];
+}
+
 router.get('/session', (req, res) => {
   const setupNeeded = !get('SELECT 1 AS x FROM users LIMIT 1');
-  res.json({ ok: true, user: publicUser(req.user), setupNeeded, twoFactorPending: Boolean(req.session && req.session.pending_2fa) });
+  res.json({
+    ok: true, user: publicUser(req.user), setupNeeded, twoFactorPending: Boolean(req.session && req.session.pending_2fa),
+    setupCodeNeeded: setupNeeded && !onThisComputer(req)
+  });
 });
 
-// First start only: create the owner account. Needs the one-time code printed in the server log.
+// First start only: create the owner account. From another device this needs the one-time code printed in the
+// server log; on the computer running Guardora itself it does not.
 router.post('/setup', loginLimit, (req, res) => {
   if (get('SELECT 1 AS x FROM users LIMIT 1')) throw new HttpError(409, 'Guardora is already set up. Please sign in.');
   const b = req.body || {};
-  if (str(b.setupCode).toUpperCase().replace(/[\s-]/g, '') !== SETUP_TOKEN) throw new HttpError(403, 'The setup code is not right. It is printed in the server window / log when Guardora starts.');
+  if (!onThisComputer(req) && str(b.setupCode).toUpperCase().replace(/[\s-]/g, '') !== SETUP_TOKEN) throw new HttpError(403, 'The setup code is not right. It is printed in the server window / log when Guardora starts.');
   const name = str(b.name, 80);
   const email = str(b.email, 160).toLowerCase();
   if (!name) throw new HttpError(400, 'Please enter your name.');
