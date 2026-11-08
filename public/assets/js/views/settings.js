@@ -1,4 +1,4 @@
-// Settings: connect the HR mailbox and the website, the team, sign-in security, backups and the audit log.
+// Settings: connect mailboxes, WhatsApp and the website, the team, sign-in security, backups and the audit log.
 
 import { h, clear, icon, toast, modal, confirmBox, promptBox, fmtDate, ago, fmtSize } from '../ui.js';
 import { api, qs } from '../api.js';
@@ -6,9 +6,11 @@ import { api, qs } from '../api.js';
 export async function render(main, ctx) {
   const owner = ctx.user.role === 'owner';
   const SECTIONS = owner
-    ? [['mailbox', 'Mailbox'], ['website', 'Website'], ['team', 'Team'], ['security', 'My security'], ['backups', 'Backups'], ['audit', 'Audit log'], ['general', 'General']]
+    ? [['mailboxes', 'Mailboxes'], ['whatsapp', 'WhatsApp'], ['website', 'Website'], ['team', 'Team'], ['security', 'My security'], ['backups', 'Backups'], ['audit', 'Audit log'], ['general', 'General']]
     : [['security', 'My security']];
-  let current = SECTIONS.some(([k]) => k === ctx.parts[1]) ? ctx.parts[1] : SECTIONS[0][0];
+  const asked = ctx.parts[1] === 'mailbox' ? 'mailboxes' : ctx.parts[1]; // old links
+  let current = SECTIONS.some(([k]) => k === asked) ? asked : SECTIONS[0][0];
+  let settingsTimer = null;
   const nav = h('nav', { class: 'settings-nav' });
   const body = h('div', { class: 'stack' });
 
@@ -21,54 +23,181 @@ export async function render(main, ctx) {
     history.replaceState(null, '', '/settings/' + key);
     clear(nav, SECTIONS.map(([k, l]) => h('button', { class: k === key ? 'active' : '', onclick: () => show(k) }, l)));
     clear(body, h('div', { class: 'center' }, h('div', { class: 'spinner' })));
-    ({ mailbox, website, team, security, backups, audit, general })[key]().catch((err) => clear(body, h('div', { class: 'banner bad' }, err.message)));
+    clearTimeout(settingsTimer);
+    ({ mailboxes, whatsapp, website, team, security, backups, audit, general })[key]().catch((err) => clear(body, h('div', { class: 'banner bad' }, err.message)));
   }
 
   const card = (title, intro, ...content) => h('section', { class: 'card section' }, h('div', {}, h('h2', {}, title), intro ? h('p', { class: 'muted', style: { margin: '6px 0 0' } }, intro) : null), ...content);
   const field = (label, input, hint) => h('label', { class: 'field' }, h('span', {}, label), input, hint ? h('span', { class: 'hint' }, hint) : null);
 
-  /* ---------- Mailbox ---------- */
+  /* ---------- Mailboxes ---------- */
 
-  async function mailbox() {
-    const s = (await api('/settings')).mailbox;
-    const enabled = h('input', { type: 'checkbox', checked: s.enabled });
-    const user = h('input', { class: 'input', type: 'email', value: s.user || 'hr@guardiansindia.com', autocomplete: 'off' });
-    const pass = h('input', { class: 'input', type: 'password', autocomplete: 'new-password', placeholder: s.hasPassword ? '•••••••••••••••• (saved)' : 'xxxx xxxx xxxx xxxx' });
-    const host = h('input', { class: 'input', value: s.host });
-    const port = h('input', { class: 'input', type: 'number', value: s.port });
-    const boxes = h('input', { class: 'input', value: s.mailboxes });
-    const since = h('input', { class: 'input', type: 'date', value: s.since });
+  const APP_PASSWORD_HELP = {
+    gmail: ['Gmail / Google Workspace needs an app password:', 'Sign in to the mailbox at myaccount.google.com → Security → turn on 2-Step Verification.',
+      'Open myaccount.google.com/apppasswords, create one named "Guardora" and copy the 16 letters.', 'In Gmail → Settings → Forwarding and POP/IMAP, make sure IMAP is enabled.'],
+    outlook: ['Outlook / Microsoft 365:', 'Personal Outlook.com: turn on two-step verification, then create an app password at account.microsoft.com → Security.',
+      'Company Microsoft 365 often blocks app passwords; your IT admin must allow IMAP / SMTP AUTH for this mailbox.'],
+    zoho: ['Zoho Mail:', 'Zoho → My Account → Security → App passwords → generate one for "Guardora".', 'In Zoho Mail settings, enable IMAP access.'],
+    yahoo: ['Yahoo Mail:', 'Yahoo Account security → Generate app password.'],
+    hostinger: ['Hostinger email:', 'Use the mailbox password set in hPanel → Emails.'],
+    rediff: ['Rediffmail Pro:', 'Use the mailbox password. IMAP must be enabled for the domain.'],
+    titan: ['Titan email:', 'Use the mailbox password. IMAP/SMTP must be enabled in the Titan admin panel.'],
+    custom: ['Other provider:', 'Use the mailbox password (or an app password if the provider has them) and the IMAP / SMTP servers your provider gives.']
+  };
+
+  async function mailboxes() {
+    const r = await api('/mail-accounts');
+    const st = Object.fromEntries(r.statuses.map((x) => [x.id, x]));
+    const tone = (x) => ({ watching: 'ok', syncing: 'busy', connecting: 'busy', error: 'bad' })[x] || '';
+    clear(body, card('Mailboxes', 'Every mailbox Guardora reads CVs from, and the ones you can send email from. Add as many as you like: hr@, jobs@, careers@, a personal Gmail…',
+      r.items.length ? h('div', { class: 'stack', style: { gap: '10px' } }, r.items.map((a) => {
+        const s = st[a.id] || {};
+        return h('div', { class: 'card pad', style: { boxShadow: 'none', display: 'grid', gap: '6px' } },
+          h('div', { class: 'row wrap' }, h('b', { class: 'grow' }, a.email + (a.label ? ' — ' + a.label : '')),
+            a.import_enabled ? h('span', { class: 'pill info' }, icon('inbox', 'sm'), 'Imports CVs') : h('span', { class: 'pill neutral' }, 'Not importing'),
+            a.send_enabled ? h('span', { class: 'pill gold' }, icon('send', 'sm'), 'Sends email · ' + a.daily_limit + '/day') : null),
+          a.import_enabled ? h('div', { class: 'row small' }, h('span', { class: 'dot ' + tone(s.state) }), h('span', { class: 'grow' }, s.message || ''),
+            s.progress ? h('span', { class: 'muted nowrap' }, s.progress.done + ' / ' + s.progress.total) : null) : null,
+          a.import_enabled && s.state === 'error' && s.lastError ? h('div', { class: 'tiny', style: { color: 'var(--bad)' } }, s.lastError) : null,
+          h('div', { class: 'tiny muted' }, 'Folders: ' + a.folders + (a.since ? ' · mail since ' + fmtDate(a.since) : '') + ' · added ' + fmtDate(a.created_at)),
+          h('div', { class: 'row' }, h('button', { class: 'btn sm', onclick: () => mailboxForm(a, r.presets) }, icon('edit', 'sm'), 'Edit'),
+            h('button', { class: 'btn sm ghost danger', onclick: async () => {
+              if (!await confirmBox('Remove ' + a.email + '?', 'Guardora stops reading and sending through this mailbox. CVs already imported stay in the databank.', { label: 'Remove', kind: 'danger' })) return;
+              await api('/mail-accounts/' + a.id, { method: 'DELETE' });
+              toast('Removed');
+              mailboxes();
+            } }, 'Remove')));
+      })) : h('div', { class: 'empty', style: { padding: '24px' } }, icon('inbox'), h('p', {}, 'No mailbox connected yet.')),
+      h('div', {}, h('button', { class: 'btn primary', onclick: () => mailboxForm(null, r.presets) }, icon('plus', 'sm'), 'Add a mailbox'))));
+    clearTimeout(settingsTimer);
+    if (current === 'mailboxes' && r.statuses.some((x) => ['syncing', 'connecting'].includes(x.state))) settingsTimer = setTimeout(() => current === 'mailboxes' && mailboxes().catch(() => {}), 4000);
+  }
+
+  function mailboxForm(a, presets) {
+    const v = a || { email: '', provider: '', folders: 'INBOX', import_enabled: 1, send_enabled: 0, daily_limit: 400, imap_port: 993, smtp_port: 465 };
+    const f = (name, attrs = {}) => h('input', { class: 'input', name, value: v[name] ?? '', ...attrs });
+    const email = f('email', { type: 'email', disabled: Boolean(a), placeholder: 'e.g. jobs@guardiansindia.com' });
+    const provider = h('select', { class: 'input', name: 'provider' }, h('option', { value: '' }, 'Detect from the address'), Object.entries(presets).map(([k, p]) => h('option', { value: k, selected: v.provider === k }, p.label)));
+    const password = h('input', { class: 'input', name: 'password', type: 'password', autocomplete: 'new-password', placeholder: a ? '•••••••• (saved; leave empty to keep)' : 'App password' });
+    const imp = h('input', { type: 'checkbox', checked: Boolean(v.import_enabled) });
+    const snd = h('input', { type: 'checkbox', checked: Boolean(v.send_enabled) });
+    const imapHost = f('imap_host');
+    const imapPort = f('imap_port', { type: 'number' });
+    const smtpHost = f('smtp_host');
+    const smtpPort = f('smtp_port', { type: 'number' });
+    const help = h('div', { class: 'banner info' });
     const result = h('div');
-    const payload = () => ({ enabled: enabled.checked, user: user.value.trim(), password: pass.value, host: host.value.trim(), port: port.value, mailboxes: boxes.value, since: since.value });
-    clear(body, card('HR mailbox', 'Guardora signs in to the mailbox, imports CVs from all existing mail, then stays connected and imports new ones the moment they arrive.',
-      h('div', { class: 'banner info' }, icon('key'), h('div', {}, h('b', {}, 'guardiansindia.com mail is on Google Workspace. '), 'Use an app password, not the normal password:',
-        h('ol', { class: 'steps', style: { marginTop: '6px', color: 'inherit' } },
-          h('li', {}, 'Sign in to ', h('b', {}, 'hr@guardiansindia.com'), ' at myaccount.google.com → Security → turn on ', h('b', {}, '2-Step Verification'), '.'),
-          h('li', {}, 'Open ', h('b', {}, 'myaccount.google.com/apppasswords'), ', create one named "Guardora", copy the 16 letters.'),
-          h('li', {}, 'In Gmail settings → Forwarding and POP/IMAP, make sure ', h('b', {}, 'IMAP is enabled'), '. Paste the app password below.')),
-          h('div', { class: 'tiny' }, 'If App passwords is missing, the Workspace admin must allow 2-Step Verification for the account.'))),
-      h('label', { class: 'check' }, enabled, h('b', {}, 'Import CVs from this mailbox')),
-      h('div', { class: 'form-grid' },
-        field('Mailbox address', user), field('App password', pass, s.hasPassword ? 'Leave empty to keep the saved one.' : 'Stored encrypted; never shown again.'),
-        field('Folders to read', boxes, 'INBOX, or "[Gmail]/All Mail" to include archived mail. Comma separated.'),
-        field('Only mail since (optional)', since, 'Empty = all mail ever received.'),
-        field('IMAP server', host), field('Port', port)),
-      s.available && s.available.length ? h('p', { class: 'hint', style: { margin: 0 } }, 'Folders on this mailbox: ' + s.available.join(', ')) : null,
-      result,
-      h('div', { class: 'row wrap' },
-        h('button', { class: 'btn', onclick: async () => {
+    const guess = (mail) => {
+      const d = (mail.split('@')[1] || '').toLowerCase();
+      return /gmail|googlemail|guardiansindia/.test(d) ? 'gmail' : /outlook|hotmail|live/.test(d) ? 'outlook' : /zoho/.test(d) ? 'zoho' : /yahoo|ymail/.test(d) ? 'yahoo' : '';
+    };
+    const applyPreset = () => {
+      const key = provider.value || guess(email.value) || 'custom';
+      const p = presets[key];
+      if (!a || provider.value) {
+        imapHost.value = p.imap_host;
+        imapPort.value = p.imap_port;
+        smtpHost.value = p.smtp_host;
+        smtpPort.value = p.smtp_port;
+      }
+      const lines = APP_PASSWORD_HELP[key] || APP_PASSWORD_HELP.custom;
+      clear(help, icon('key'), h('div', {}, h('b', {}, lines[0]), h('ol', { class: 'steps', style: { marginTop: '4px', color: 'inherit' } }, lines.slice(1).map((l) => h('li', {}, l)))));
+    };
+    provider.onchange = applyPreset;
+    email.oninput = applyPreset;
+    applyPreset();
+    const form = h('form', { class: 'stack' },
+      h('div', { class: 'form-grid' }, field('Email address', email), field('Provider', provider), field('App password', password), field('Name (optional)', f('label', { placeholder: 'e.g. Jobs inbox' }))),
+      help,
+      h('label', { class: 'check' }, imp, h('b', {}, 'Import CVs from this mailbox')),
+      h('div', { class: 'form-grid' }, field('Folders to read', f('folders'), 'INBOX, or "[Gmail]/All Mail" to include archived mail.'), field('Only mail since (optional)', f('since', { type: 'date' }), 'Empty = all mail ever received.')),
+      h('label', { class: 'check' }, snd, h('b', {}, 'Send email from this mailbox'), h('span', { class: 'hint' }, '(for "Email" to candidates)')),
+      h('div', { class: 'form-grid' }, field('Sender name', f('from_name', { placeholder: 'e.g. The Guardians HR' })), field('Daily limit', f('daily_limit', { type: 'number', min: 1, max: 5000 }), 'Gmail allows about 500 a day, Google Workspace about 2,000. Guardora stays under this.')),
+      field('Signature (added to every email)', h('textarea', { class: 'input', name: 'signature', style: { minHeight: '70px' } }, a ? v.signature : 'Regards,\nThe Guardians\nhr@guardiansindia.com')),
+      h('details', {}, h('summary', { class: 'small', style: { cursor: 'pointer' } }, 'Server settings'),
+        h('div', { class: 'form-grid', style: { marginTop: '10px' } }, field('IMAP server (reading)', imapHost), field('IMAP port', imapPort), field('SMTP server (sending)', smtpHost), field('SMTP port', smtpPort))),
+      result);
+    const payload = () => ({
+      email: email.value.trim(), provider: provider.value, password: password.value, label: form.elements.label.value,
+      import_enabled: imp.checked, folders: form.elements.folders.value, since: form.elements.since.value,
+      send_enabled: snd.checked, from_name: form.elements.from_name.value, signature: form.elements.signature.value, daily_limit: Number(form.elements.daily_limit.value),
+      imap_host: imapHost.value, imap_port: Number(imapPort.value), smtp_host: smtpHost.value, smtp_port: Number(smtpPort.value)
+    });
+    modal({
+      title: a ? 'Edit ' + a.email : 'Add a mailbox', wide: true, body: form,
+      actions: [
+        { label: 'Cancel' },
+        { label: 'Test connection', onClick: async () => {
           clear(result, h('div', { class: 'spinner' }));
-          const r = await api('/settings/mailbox/test', { method: 'POST', body: payload() });
-          clear(result, r.ok ? h('div', { class: 'banner ok' }, icon('check'), 'Signed in. ' + r.inboxCount + ' messages in INBOX. Folders: ' + r.mailboxes.join(', '))
-            : h('div', { class: 'banner bad' }, icon('alert'), r.error));
-        } }, 'Test connection'),
-        h('button', { class: 'btn primary', onclick: async () => {
           try {
-            await api('/settings/mailbox', { method: 'PUT', body: payload() });
-            toast(enabled.checked ? 'Saved. Importing starts now.' : 'Saved.');
-            pass.value = '';
-          } catch (err) { clear(result, h('div', { class: 'banner bad' }, icon('alert'), err.message)); }
-        } }, 'Save'))));
+            const t = await api('/mail-accounts/test', { method: 'POST', body: { ...payload(), id: a ? a.id : undefined } });
+            clear(result,
+              t.imap.ok ? h('div', { class: 'banner ok' }, icon('check'), 'Reading works: ' + t.imap.inboxCount + ' messages in INBOX. Folders: ' + t.imap.mailboxes.join(', '))
+                : h('div', { class: 'banner bad' }, icon('alert'), 'Reading failed: ' + t.imap.error),
+              t.smtp ? (t.smtp.ok ? h('div', { class: 'banner ok', style: { marginTop: '6px' } }, icon('check'), 'Sending works.')
+                : h('div', { class: 'banner bad', style: { marginTop: '6px' } }, icon('alert'), 'Sending failed: ' + t.smtp.error)) : null);
+          } catch (err) { clear(result, h('div', { class: 'banner bad' }, err.message)); }
+          return false;
+        } },
+        { label: 'Save', kind: 'primary', onClick: async () => {
+          clear(result, h('div', { class: 'spinner' }));
+          try {
+            await api(a ? '/mail-accounts/' + a.id : '/mail-accounts', { method: a ? 'PUT' : 'POST', body: payload() });
+            toast(a ? 'Saved' : 'Mailbox connected. Importing starts now.');
+            mailboxes();
+          } catch (err) {
+            clear(result, h('div', { class: 'banner bad' }, icon('alert'), err.message));
+            return false;
+          }
+        } }
+      ]
+    });
+  }
+
+  /* ---------- WhatsApp ---------- */
+
+  async function whatsapp() {
+    const r = await api('/whatsapp');
+    const st = r.status;
+    const tone = ({ connected: 'ok', waiting_qr: 'busy', starting: 'busy', reconnecting: 'busy', error: 'bad' })[st.state] || '';
+    const groups = h('input', { type: 'checkbox', checked: r.options.groups });
+    const history = h('input', { type: 'checkbox', checked: r.options.history });
+    const saveOptions = async () => {
+      await api('/whatsapp/options', { method: 'PUT', body: { groups: groups.checked, history: history.checked } });
+      toast('Saved');
+    };
+    groups.onchange = saveOptions;
+    history.onchange = saveOptions;
+    const connected = st.state === 'connected';
+    const busy = ['waiting_qr', 'starting', 'reconnecting'].includes(st.state);
+    clear(body,
+      card('WhatsApp', "Link a WhatsApp number to Guardora like WhatsApp Web. CV files people send to that number (PDF, Word) are imported automatically, with the sender's name and number.",
+        h('div', { class: 'banner warn' }, icon('alert'), h('div', {}, h('b', {}, 'Use a dedicated HR number. '),
+          'WhatsApp does not officially support linking other programs to normal or WhatsApp Business app numbers, so there is a small risk WhatsApp restricts the number. Guardora only reads: it never sends messages or marks chats as read. You can unlink it any time from the phone (Linked devices) or here.')),
+        h('div', { class: 'row' }, h('span', { class: 'dot ' + tone }), h('b', { class: 'grow' }, st.message),
+          connected && st.number ? h('span', { class: 'pill ok' }, icon('phone', 'sm'), st.number + (st.name ? ' · ' + st.name : '')) : null),
+        st.qr ? h('div', { class: 'stack', style: { justifyItems: 'center', gap: '8px' } },
+          h('img', { src: st.qr, alt: 'WhatsApp QR code', width: 260, height: 260, style: { background: '#fff', padding: '10px', borderRadius: '12px' } }),
+          h('ol', { class: 'steps' }, h('li', {}, 'Open WhatsApp on the HR phone.'), h('li', {}, 'Settings (or ⋮ menu) → Linked devices → Link a device.'), h('li', {}, 'Point the phone at this code.'))) : null,
+        st.imported ? h('div', { class: 'small muted' }, st.imported + ' CVs imported from WhatsApp since the server started' + (st.lastAt ? ', last ' + ago(st.lastAt) : '') + '.') : null,
+        st.lastError && !connected ? h('div', { class: 'tiny', style: { color: 'var(--bad)' } }, st.lastError) : null,
+        h('div', { class: 'row wrap' },
+          !connected && !busy ? h('button', { class: 'btn primary', onclick: async () => {
+            await api('/whatsapp/connect', { method: 'POST' });
+            setTimeout(() => whatsapp().catch(() => {}), 1500);
+          } }, icon('chat', 'sm'), r.linked ? 'Reconnect' : 'Connect WhatsApp') : null,
+          r.linked || connected || st.state === 'waiting_qr' ? h('button', { class: 'btn danger', onclick: async () => {
+            if (!await confirmBox('Unlink WhatsApp?', "Guardora stops importing CVs from WhatsApp and is removed from the phone's linked devices. CVs already imported stay.", { label: 'Unlink', kind: 'danger' })) return;
+            await api('/whatsapp/unlink', { method: 'POST' });
+            toast('Unlinked');
+            whatsapp();
+          } }, 'Unlink') : null)),
+      card('What to import', null,
+        h('label', { class: 'check' }, groups, 'Also import CVs posted in WhatsApp groups'),
+        h('label', { class: 'check' }, history, 'When first linked, also import CVs from recent chats (older files may no longer be available on WhatsApp)'),
+        h('p', { class: 'hint', style: { margin: 0 } }, 'Photos are imported only when the message says it is a CV or resume. Your own messages, statuses and channels are never imported.')));
+    clearTimeout(settingsTimer);
+    if (current === 'whatsapp' && busy) settingsTimer = setTimeout(() => current === 'whatsapp' && whatsapp().catch(() => {}), 2500);
   }
 
   /* ---------- Website ---------- */
@@ -238,4 +367,5 @@ export async function render(main, ctx) {
   }
 
   show(current);
+  return { cleanup: () => clearTimeout(settingsTimer) };
 }

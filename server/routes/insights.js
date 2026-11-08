@@ -6,9 +6,11 @@ const { HttpError, requireRole, audit } = require('../auth');
 const { searchCandidates, STATUSES } = require('../search');
 const { parseCv } = require('../extract/parse');
 const { EDUCATION_LEVELS, SKILLS, CITIES, CITY_ALIASES, STATES } = require('../extract/dictionary');
+const areas = require('../extract/areas');
 const { parseJson } = require('../ingest');
 const mailbox = require('../sources/mailbox');
 const website = require('../sources/website');
+const whatsapp = require('../sources/whatsapp');
 
 const router = express.Router();
 const viewer = requireRole('viewer');
@@ -23,6 +25,7 @@ router.get('/meta', viewer, (req, res) => {
     statuses: STATUSES,
     cities: Object.keys(CITIES).filter((c) => !CITY_ALIASES[c]).sort(),
     states: STATES,
+    places: areas.catalogue(),
     degrees: [...new Set(all("SELECT DISTINCT degrees FROM candidates WHERE trim(degrees) != ''").flatMap((r) => r.degrees.split('|').map((d) => d.trim())))].filter(Boolean).sort(),
     tags: [...new Set(all("SELECT tags FROM candidates WHERE tags != '[]'").flatMap((r) => parseJson(r.tags, [])))].sort()
   });
@@ -41,7 +44,8 @@ router.get('/counts', viewer, (req, res) => {
     ok: true,
     alerts: count('SELECT COUNT(DISTINCT candidate_id) AS n FROM flags WHERE resolved = 0 AND severity >= 2'),
     duplicates: count("SELECT COUNT(*) AS n FROM duplicate_suggestions WHERE status = 'open'"),
-    mailbox: mailbox.status.state,
+    mailbox: mailbox.overall().state,
+    whatsapp: whatsapp.status.state,
     website: website.status.state
   });
 });
@@ -81,7 +85,7 @@ router.get('/dashboard', viewer, (req, res) => {
     recentAlerts: all(`SELECT f.id, f.kind, f.severity, f.message, f.created_at, c.id AS candidate_id, c.name FROM flags f JOIN candidates c ON c.id = f.candidate_id
                        WHERE f.resolved = 0 ORDER BY f.severity DESC, f.id DESC LIMIT 6`),
     recent: all(`SELECT id, name, city, applied_for, last_seen_at, last_source, cv_count, risk, blacklisted, done FROM candidates ORDER BY last_seen_at DESC LIMIT 8`),
-    sources: { mailbox: mailbox.status, website: website.status }
+    sources: { mailbox: mailbox.overall(), website: website.status, whatsapp: { ...whatsapp.status, qr: '' } }
   });
 });
 

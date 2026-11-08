@@ -6,6 +6,7 @@ import {
 import { api, fetchBlob, qs } from '../api.js';
 import { renderPdf } from '../pdfview.js';
 import { openShareDialog } from './share-dialog.js';
+import { openEmailDialog } from './email-dialog.js';
 
 const STATUS_LABELS = { new: 'New', reviewing: 'Reviewing', shortlisted: 'Shortlisted', interview: 'Interview', placed: 'Placed', on_hold: 'On hold', rejected: 'Rejected' };
 const GENDERS = { male: 'Male', female: 'Female', other: 'Other' };
@@ -116,6 +117,7 @@ export function openCandidate(container, id, { user, meta, query, onChange, onCl
       const item = (ic, label, fn, cls = '') => h('button', { class: 'btn ghost sm ' + cls, style: { justifyContent: 'flex-start' }, onclick: () => { closePopover(); fn(); } }, icon(ic, 'sm'), label);
       popover(btn, h('div', { class: 'stack', style: { gap: '2px' } },
         canEdit ? item('edit', 'Edit details', editDetails) : null,
+        canEdit && data.candidate.email ? item('mail', 'Write email', () => openEmailDialog({ ids: [id], label: data.candidate.name || 'this candidate', user, navigate })) : null,
         canEdit ? item('note', 'Tags', editTags) : null,
         canEdit ? item('merge', 'Merge with another record…', mergeWith) : null,
         canEdit ? item('refresh', 'Re-read details from the CVs', () => act('/reparse', {}, 'Details refreshed from the CVs')) : null,
@@ -205,7 +207,8 @@ export function openCandidate(container, id, { user, meta, query, onChange, onCl
         fact('Phone', c.phones.length ? c.phones.join(', ') : c.phone, 'phone'),
         fact('Age', a ? a + ' years' + (c.dob ? ' (born ' + fmtDate(c.dob) + ')' : ' (approx.)') : '', 'dob'),
         fact('Gender', GENDERS[c.gender] || '', 'gender'),
-        fact('Location', [c.city, c.state].filter(Boolean).join(', '), 'city'),
+        fact('Location', [c.area, c.city !== c.area ? c.city : '', c.state].filter(Boolean).join(', '), 'area'),
+        c.area ? fact('Railway line', areaLines(c.area), '') : null,
         fact('Education', c.education_level ? levels[c.education_level] : '', 'education_level'),
         fact('Experience', c.experience_years != null ? fmtExp(c.experience_years) : '', 'experience_years'),
         fact('Current role', [c.current_title, c.current_company].filter(Boolean).join(' at '), 'current_title'),
@@ -236,6 +239,15 @@ export function openCandidate(container, id, { user, meta, query, onChange, onCl
         canEdit ? h('button', { class: 'btn sm', onclick: () => doMerge(d.other) }, icon('merge', 'sm'), 'Merge') : null,
         canEdit ? h('button', { class: 'btn sm ghost', onclick: async () => { await api('/duplicates/' + d.id + '/dismiss', { method: 'POST' }); load(); } }, 'Not the same') : null))) : null,
       canEdit ? h('div', {}, h('button', { class: 'btn', onclick: editDetails }, icon('edit', 'sm'), 'Edit details')) : null));
+  }
+
+  // "Central line · Trans-Harbour line" for an area, from the catalogue the server sends.
+  function areaLines(area) {
+    const p = meta.places || {};
+    const d = (p.details || {})[area];
+    if (!d) return '—';
+    const labels = d.lines.map((k) => ((p.lines || []).find((l) => l.key === k) || { label: k }).label);
+    return [labels.join(' · '), d.station !== area ? 'nearest station ' + d.station : '', d.region].filter(Boolean).join(' — ');
   }
 
   const section = (title, content) => h('section', { class: 'stack', style: { gap: '8px' } }, h('h3', {}, title), content);
@@ -367,14 +379,15 @@ export function openCandidate(container, id, { user, meta, query, onChange, onCl
       f('Name', 'name', c.name), f('Email', 'email', c.email, { type: 'email' }), f('Phone', 'phone', c.phone),
       f('Date of birth', 'dob', c.dob, { type: 'date' }),
       h('label', { class: 'field' }, h('span', {}, 'Gender'), h('select', { class: 'input', name: 'gender' }, [['', 'Unknown'], ['male', 'Male'], ['female', 'Female'], ['other', 'Other']].map(([v, l]) => h('option', { value: v, selected: c.gender === v }, l)))),
-      f('City', 'city', c.city, { list: 'gd-cities' }), f('State', 'state', c.state),
+      f('Area', 'area', c.area, { list: 'gd-areas', placeholder: 'e.g. Mulund' }), f('City', 'city', c.city, { list: 'gd-cities' }), f('State', 'state', c.state),
       h('label', { class: 'field' }, h('span', {}, 'Education'), h('select', { class: 'input', name: 'education_level' }, (meta.educationLevels || []).map((l) => h('option', { value: l.level, selected: c.education_level === l.level }, l.label)))),
       f('Experience (years)', 'experience_years', c.experience_years, { type: 'number', step: '0.5', min: 0 }),
       f('Current title', 'current_title', c.current_title), f('Current company', 'current_company', c.current_company),
       f('Current CTC', 'current_ctc', c.current_ctc), f('Expected CTC', 'expected_ctc', c.expected_ctc), f('Notice period', 'notice_period', c.notice_period),
       f('Applied for', 'applied_for', c.applied_for),
       h('label', { class: 'field', style: { gridColumn: '1 / -1' } }, h('span', {}, 'Skills (comma separated)'), h('textarea', { class: 'input', name: 'skills' }, c.skills.join(', '))),
-      h('datalist', { id: 'gd-cities' }, (meta.cities || []).map((x) => h('option', { value: x }))));
+      h('datalist', { id: 'gd-cities' }, (meta.cities || []).map((x) => h('option', { value: x }))),
+      h('datalist', { id: 'gd-areas' }, ((meta.places || {}).areas || []).map((x) => h('option', { value: x }))));
     modal({
       title: 'Edit details', wide: true,
       body: [h('p', { class: 'hint', style: { margin: 0 } }, 'Your corrections are kept: a later CV will not overwrite fields you changed here.'), form],

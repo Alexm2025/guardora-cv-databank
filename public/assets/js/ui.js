@@ -42,6 +42,9 @@ const PATHS = {
   settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   check: 'M4 12.5 9.5 18 20 6',
   send: 'M22 2 11 13M22 2l-7 20-4-9-9-4z',
+  chat: 'M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.2A8.5 8.5 0 1 1 21 12z',
+  train: 'M6 3h12a2 2 0 0 1 2 2v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V5a2 2 0 0 1 2-2zM4 10h16M8 21l2-4M16 21l-2-4M8 14h.01M16 14h.01',
+  clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
   x: 'M6 6l12 12M18 6 6 18',
   plus: 'M12 5v14M5 12h14',
   upload: 'M12 16V4M7 9l5-5 5 5M4 16v4h16v-4',
@@ -233,7 +236,7 @@ export const fmtExp = (y) => (y == null ? '—' : y === 0 ? 'Fresher' : (Math.ro
 export const fmtSize = (b) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB');
 export const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '');
 export const initials = (name) => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
-export const sourceLabel = (s) => ({ email: 'Email', website: 'Website', upload: 'Upload' })[s] || cap(s);
+export const sourceLabel = (s) => ({ email: 'Email', website: 'Website', upload: 'Upload', whatsapp: 'WhatsApp' })[s] || cap(s);
 export const RISK = ['', 'Low', 'Medium', 'High'];
 
 // Wraps every occurrence of the search words in <mark>, safely (text nodes only).

@@ -7,6 +7,7 @@ import { api, qs } from '../api.js';
 import { openCandidate } from './candidate-panel.js';
 import { uploadFiles } from '../app.js';
 import { openShareDialog } from './share-dialog.js';
+import { openEmailDialog } from './email-dialog.js';
 
 const VIEWS = [
   ['all', 'All'], ['active', 'To do'], ['starred', 'Starred'], ['done', 'Done'], ['returned', 'Came back'],
@@ -19,7 +20,7 @@ const SORTS = [
 const STATUS_LABELS = { new: 'New', reviewing: 'Reviewing', shortlisted: 'Shortlisted', interview: 'Interview', placed: 'Placed', on_hold: 'On hold', rejected: 'Rejected' };
 const STATUS_PILL = { new: 'info', reviewing: 'neutral', shortlisted: 'gold', interview: 'gold', placed: 'ok', on_hold: 'neutral', rejected: 'bad' };
 const GENDER = { male: 'M', female: 'F', other: 'O' };
-const FILTER_KEYS = ['ageMin', 'ageMax', 'gender', 'city', 'state', 'eduMin', 'degree', 'skills', 'expMin', 'expMax', 'status', 'source', 'from', 'to', 'tag', 'applied'];
+const FILTER_KEYS = ['ageMin', 'ageMax', 'gender', 'city', 'state', 'area', 'line', 'near', 'stops', 'eduMin', 'degree', 'skills', 'expMin', 'expMax', 'status', 'source', 'from', 'to', 'tag', 'applied'];
 
 export async function render(main, ctx) {
   const { user, navigate } = ctx;
@@ -97,7 +98,9 @@ export async function render(main, ctx) {
       case 'age': return a || b ? 'Age ' + (a || '…') + '–' + (b || '…') : '';
       case 'gender': return listParam('gender').map((g) => cap(g)).join(', ');
       case 'city': {
-        const c = [...listParam('city'), ...listParam('state')];
+        const lineLabel = (k) => ((meta.places || { lines: [] }).lines.find((l) => l.key === k) || { label: k }).label;
+        const c = [...listParam('line').map(lineLabel), ...(p.get('near') ? ['Near ' + p.get('near') + ' (' + (p.get('stops') || 2) + ')'] : []),
+          ...listParam('area'), ...listParam('city'), ...listParam('state')];
         return c.length ? c[0] + (c.length > 1 ? ' +' + (c.length - 1) : '') : '';
       }
       case 'edu': {
@@ -121,7 +124,7 @@ export async function render(main, ctx) {
   const FILTERS = [
     ['age', 'Age', ['ageMin', 'ageMax'], ageFilter],
     ['gender', 'Gender', ['gender'], genderFilter],
-    ['city', 'Location', ['city', 'state'], locationFilter],
+    ['city', 'Location', ['city', 'state', 'area', 'line', 'near', 'stops'], locationFilter],
     ['edu', 'Education', ['eduMin', 'degree'], eduFilter],
     ['skills', 'Skills', ['skills'], skillsFilter],
     ['exp', 'Experience', ['expMin', 'expMax'], expFilter],
@@ -192,12 +195,47 @@ export async function render(main, ctx) {
   async function locationFilter(btn) {
     const chosen = new Set(listParam('city'));
     const states = new Set(listParam('state'));
+    const areas = new Set(listParam('area'));
+    const lines = new Set(listParam('line'));
+    const places = meta.places || { lines: [], areas: [], regions: [] };
+
+    // Railway lines: one tap each.
+    const lineBox = h('div', { class: 'presets' }, places.lines.map((l) => {
+      const b = h('button', { class: 'btn sm' + (lines.has(l.key) ? ' on' : ''), title: l.stations.join(' · '), onclick: () => { lines.has(l.key) ? lines.delete(l.key) : lines.add(l.key); b.classList.toggle('on'); } }, l.label);
+      return b;
+    }));
+
+    // Within N stations of a place.
+    const near = h('input', { class: 'input', placeholder: 'e.g. Mulund', value: params().get('near') || '', list: 'gd-places' });
+    const stops = h('select', { class: 'input', style: { width: '78px' } }, [1, 2, 3, 4, 5, 6, 8].map((n) => h('option', { value: n, selected: String(n) === (params().get('stops') || '2') }, n)));
+
+    // Areas, with how many candidates live there.
+    const findArea = h('input', { class: 'input', placeholder: 'Type an area: Mulund, Bhandup, Vikhroli…' });
+    const areaBox = h('div', { class: 'opt-list', style: { maxHeight: '190px' } }, h('div', { class: 'spinner' }));
+
     const find = h('input', { class: 'input', placeholder: 'Type a city…' });
-    const box = h('div', { class: 'opt-list' }, h('div', { class: 'spinner' }));
-    const stateBox = h('div', { class: 'opt-list', style: { maxHeight: '150px' } });
-    popover(btn, [h('h4', {}, 'City'), find, box, h('h4', {}, 'State'), stateBox,
-      applyBtn(() => setParams({ city: [...chosen], state: [...states] }))]);
-    const f = await facetsFor(['city', 'state']);
+    const box = h('div', { class: 'opt-list', style: { maxHeight: '170px' } });
+    const stateBox = h('div', { class: 'opt-list', style: { maxHeight: '130px' } });
+    popover(btn, [
+      h('h4', {}, 'Railway line'), lineBox,
+      h('h4', {}, 'Near a station'), h('div', { class: 'row' }, h('span', { class: 'small muted' }, 'Within'), stops, h('span', { class: 'small muted nowrap' }, 'stations of'), near),
+      h('datalist', { id: 'gd-places' }, places.areas.map((a) => h('option', { value: a }))),
+      h('h4', {}, 'Area'), findArea, areaBox,
+      h('h4', {}, 'City'), find, box, h('h4', {}, 'State'), stateBox,
+      applyBtn(() => setParams({ city: [...chosen], state: [...states], area: [...areas], line: [...lines], near: near.value.trim(), stops: near.value.trim() ? stops.value : '' }))]);
+    const f = await facetsFor(['city', 'state', 'area', 'line', 'near', 'stops']);
+
+    const areaCounts = Object.fromEntries(f.area.map((a) => [a.value, a.n]));
+    const drawAreas = () => {
+      const t = findArea.value.trim().toLowerCase();
+      const names = [...new Set([...areas, ...f.area.map((a) => a.value), ...(t ? places.areas.filter((a) => a.toLowerCase().includes(t)) : [])])]
+        .filter((a) => !t || a.toLowerCase().includes(t)).slice(0, 80);
+      clear(areaBox, names.length ? names.map((a) => h('label', { class: 'opt' }, h('input', { type: 'checkbox', checked: areas.has(a), onchange: (e) => (e.target.checked ? areas.add(a) : areas.delete(a)) }),
+        h('span', {}, a), h('span', { class: 'n' }, fmtNum(areaCounts[a] || 0)))) : h('p', { class: 'hint' }, t ? 'No such area in the list.' : 'Areas appear here as CVs with addresses come in.'));
+    };
+    findArea.oninput = drawAreas;
+    drawAreas();
+
     const counts = Object.fromEntries(f.city.map((c) => [c.value, c.n]));
     const draw = () => {
       const t = find.value.trim().toLowerCase();
@@ -257,7 +295,7 @@ export async function render(main, ctx) {
   }
 
   function sourceFilter(btn) {
-    checkList(btn, 'Came from', 'source', [['email', 'Email (HR mailbox)'], ['website', 'Website'], ['upload', 'Added by hand']]);
+    checkList(btn, 'Came from', 'source', [['email', 'Email (mailboxes)'], ['website', 'Website'], ['whatsapp', 'WhatsApp'], ['upload', 'Added by hand']]);
   }
 
   function dateFilter(btn) {
@@ -309,6 +347,7 @@ export async function render(main, ctx) {
     const parts = [h('span', {}, h('b', {}, fmtNum(total)), ' candidate' + (total === 1 ? '' : 's'), tookMs != null ? ' · ' + tookMs + ' ms' : '')];
     if (picked.size && canEdit) {
       parts.push(h('span', { class: 'pill gold' }, picked.size + ' selected'),
+        h('button', { class: 'btn sm', onclick: () => openEmailDialog({ ids: [...picked], label: picked.size + ' candidate' + (picked.size > 1 ? 's' : ''), user, navigate, onDone: () => { picked.clear(); drawRows(); drawResultLine(); } }) }, icon('mail', 'sm'), 'Email'),
         h('button', { class: 'btn primary sm', onclick: () => openShareDialog({ ids: [...picked], label: picked.size + ' candidate' + (picked.size > 1 ? 's' : ''), onDone: () => { picked.clear(); load(true); } }) }, icon('send', 'sm'), 'Share with company'),
         h('button', { class: 'btn sm', onclick: () => bulk('done') }, icon('check', 'sm'), 'Mark done'),
         h('button', { class: 'btn sm', onclick: async () => { const tag = await promptBox('Tag ' + picked.size + ' candidates', { label: 'Tag' }); if (tag) bulk('tag', { tag }); } }, 'Tag'),
@@ -343,7 +382,7 @@ export async function render(main, ctx) {
           c.needs_review ? h('span', { class: 'pill warn', title: 'Scanned CV — details need reading by hand' }, 'Scan') : null)),
       h('div', { class: 'sub ellipsis' }, [c.current_title || c.applied_for, c.email, c.phone].filter(Boolean).join(' · '))),
     h('td', { class: 'nowrap m-hide col-mid' }, a ? a + (GENDER[c.gender] ? ' ' + GENDER[c.gender] : '') : (GENDER[c.gender] || h('span', { class: 'faint' }, '—'))),
-    h('td', { class: 'm-hide col-mid' }, c.city || c.state || h('span', { class: 'faint' }, '—')),
+    h('td', { class: 'm-hide col-mid' }, [c.area, c.city !== c.area ? c.city : ''].filter(Boolean).join(', ') || c.state || h('span', { class: 'faint' }, '—')),
     h('td', { class: 'm-hide col-mid' }, c.degrees.length ? c.degrees.slice(0, 2).join(', ') : h('span', { class: 'faint' }, '—')),
     h('td', { class: 'col-wide m-hide' }, h('div', { class: 'skills' }, c.skills.slice(0, 3).map((s) => h('span', { class: 'chip' }, s)), c.skills.length > 3 ? h('span', { class: 'chip miss', title: c.skills.slice(3).join(', ') }, '+' + (c.skills.length - 3)) : null)),
     h('td', { class: 'nowrap m-hide col-mid' }, fmtExp(c.experience_years)),
@@ -360,7 +399,7 @@ export async function render(main, ctx) {
     h('td', { class: 'm-full m-only small muted' }));
     // Phone layout: one summary line under the name.
     const mobileLine = tr.lastChild;
-    mobileLine.textContent = [a ? a + ' yrs' : '', cap(c.gender), c.city, c.degrees[0], c.experience_years != null ? fmtExp(c.experience_years) : ''].filter(Boolean).join(' · ');
+    mobileLine.textContent = [a ? a + ' yrs' : '', cap(c.gender), c.area || c.city, c.degrees[0], c.experience_years != null ? fmtExp(c.experience_years) : ''].filter(Boolean).join(' · ');
     return tr;
   }
 
