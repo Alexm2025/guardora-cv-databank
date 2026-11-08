@@ -39,13 +39,17 @@ if errorlevel 1 (
   echo Could not create the start-at-sign-in task. Guardora will run now, but start it with "Start Guardora.bat" after a restart.
 )
 
-rem 4. Start now and open it
+rem 4. "Guardora" shortcuts on the Desktop and in the Start menu (opens in its own window)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\windows\create-shortcuts.ps1" >nul
+
+rem 5. Start now and open it
 wscript.exe "%~dp0tools\windows\start-hidden.vbs"
 echo.
 echo Guardora is running in the background and starts by itself when you sign in to Windows.
-echo Opening http://localhost:8787 ...
+echo From now on, open it with the "Guardora" icon on your Desktop or in the Start menu.
+echo Tip: right-click the Guardora icon in the taskbar while it is open and choose "Pin to taskbar".
 ping -n 9 127.0.0.1 >nul
-start "" http://localhost:8787
+if exist "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Guardora.lnk" (start "" "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Guardora.lnk") else (start "" http://localhost:8787)
 echo.
 echo IMPORTANT: copy the file data\master.key to a USB stick or password manager. Without it the CVs cannot be opened.
 pause

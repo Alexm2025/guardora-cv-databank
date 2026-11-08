@@ -83,7 +83,8 @@ npm start
 
 Copy the `Guardora-setup.zip` to that PC (or clone the GitHub repo), unzip it somewhere permanent such as
 `C:\Guardora`, and double-click **Install Guardora background.bat**. It installs Node.js if needed, installs
-Guardora, makes it start hidden at every Windows sign-in, and opens it in the browser. Step-by-step:
+Guardora, makes it start hidden at every Windows sign-in, and puts a **Guardora** icon on the Desktop and in the
+Start menu that opens it in its own window (right-click it in the taskbar → Pin to taskbar). Step-by-step:
 `INSTALL ON YOUR PC.txt`. To stop it: **Remove Guardora background.bat** (data is kept).
 
 ## Connect a mailbox (hr@ and any others)
