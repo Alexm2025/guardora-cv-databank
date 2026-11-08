@@ -281,6 +281,70 @@ const MIGRATIONS = [
     created_at TEXT NOT NULL
   );
   CREATE INDEX idx_share_views_share ON share_views(share_id, id);
+  `,
+  // 3: several mailboxes, bulk email with scheduling, and areas / railway lines.
+  `
+  CREATE TABLE mail_accounts (
+    id INTEGER PRIMARY KEY,
+    label TEXT NOT NULL DEFAULT '',
+    provider TEXT NOT NULL DEFAULT 'custom',
+    email TEXT NOT NULL,
+    imap_host TEXT NOT NULL DEFAULT '',
+    imap_port INTEGER NOT NULL DEFAULT 993,
+    smtp_host TEXT NOT NULL DEFAULT '',
+    smtp_port INTEGER NOT NULL DEFAULT 465,
+    pass_enc TEXT NOT NULL DEFAULT '',                -- app password, encrypted
+    folders TEXT NOT NULL DEFAULT 'INBOX',
+    since TEXT NOT NULL DEFAULT '',
+    import_enabled INTEGER NOT NULL DEFAULT 1,
+    send_enabled INTEGER NOT NULL DEFAULT 0,
+    from_name TEXT NOT NULL DEFAULT '',
+    signature TEXT NOT NULL DEFAULT '',
+    daily_limit INTEGER NOT NULL DEFAULT 400,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE campaigns (
+    id INTEGER PRIMARY KEY,
+    account_id INTEGER REFERENCES mail_accounts(id) ON DELETE SET NULL,
+    subject TEXT NOT NULL,
+    body TEXT NOT NULL,
+    attachments TEXT NOT NULL DEFAULT '[]',          -- [{sha, name, size, mime}] in the vault
+    status TEXT NOT NULL DEFAULT 'scheduled',        -- scheduled | sending | sent | cancelled | failed
+    send_at TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    total INTEGER NOT NULL DEFAULT 0,
+    sent INTEGER NOT NULL DEFAULT 0,
+    failed INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    started_at TEXT,
+    finished_at TEXT
+  );
+  CREATE INDEX idx_campaigns_due ON campaigns(status, send_at);
+
+  CREATE TABLE campaign_recipients (
+    id INTEGER PRIMARY KEY,
+    campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    candidate_id INTEGER REFERENCES candidates(id) ON DELETE SET NULL,
+    email TEXT NOT NULL DEFAULT '',
+    name TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',          -- pending | sent | failed | skipped
+    error TEXT NOT NULL DEFAULT '',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    sent_at TEXT
+  );
+  CREATE INDEX idx_recipients_campaign ON campaign_recipients(campaign_id, status);
+
+  CREATE TABLE mail_sent_log (
+    account_id INTEGER NOT NULL,
+    sent_at TEXT NOT NULL
+  );
+  CREATE INDEX idx_mail_sent_log ON mail_sent_log(account_id, sent_at);
+
+  ALTER TABLE candidates ADD COLUMN area TEXT NOT NULL DEFAULT '';
+  ALTER TABLE candidates ADD COLUMN region TEXT NOT NULL DEFAULT '';
+  CREATE INDEX idx_cand_area ON candidates(area);
   `
 ];
 

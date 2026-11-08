@@ -7,6 +7,7 @@ const { encryptSecret, decryptSecret, hashPassword, passwordProblem } = require(
 const { getSetting } = require('../ingest');
 const mailbox = require('../sources/mailbox');
 const website = require('../sources/website');
+const whatsapp = require('../sources/whatsapp');
 const backup = require('../backup');
 
 const router = express.Router();
@@ -20,7 +21,9 @@ const setSetting = (key, value) => run('INSERT INTO settings (key, value) VALUES
 router.get('/sources', viewer, (req, res) => {
   res.json({
     ok: true,
-    mailbox: mailbox.status,
+    mailbox: mailbox.overall(),
+    mailboxes: mailbox.statuses(),
+    whatsapp: { ...whatsapp.status, qr: '' },
     website: website.status,
     backup: { ...backup.status, latest: backup.list()[0] || null },
     counts: all("SELECT source, outcome, COUNT(*) AS n FROM ingest_log WHERE created_at >= ? GROUP BY source, outcome", new Date(Date.now() - 7 * 864e5).toISOString())
@@ -30,6 +33,7 @@ router.get('/sources', viewer, (req, res) => {
 router.post('/sources/sync', requireRole('recruiter'), (req, res) => {
   mailbox.sync();
   website.sync();
+  whatsapp.sync();
   res.json({ ok: true });
 });
 
@@ -37,7 +41,7 @@ router.get('/ingest-log', viewer, (req, res) => {
   const where = [];
   const params = [];
   if (['added', 'new_version', 'duplicate', 'skipped', 'error'].includes(req.query.outcome)) { where.push('outcome = ?'); params.push(req.query.outcome); }
-  if (['email', 'website', 'upload'].includes(req.query.source)) { where.push('source = ?'); params.push(req.query.source); }
+  if (['email', 'website', 'upload', 'whatsapp'].includes(req.query.source)) { where.push('source = ?'); params.push(req.query.source); }
   const w = where.length ? ' WHERE ' + where.join(' AND ') : '';
   const page = Math.max(1, Number(req.query.page) || 1);
   res.json({
@@ -52,16 +56,6 @@ router.get('/ingest-log', viewer, (req, res) => {
 router.get('/settings', owner, (req, res) => {
   res.json({
     ok: true,
-    mailbox: {
-      enabled: getSetting('imap_enabled', '0') === '1',
-      host: getSetting('imap_host', 'imap.gmail.com'),
-      port: Number(getSetting('imap_port', '993')),
-      user: getSetting('imap_user', ''),
-      hasPassword: Boolean(decryptSecret(getSetting('imap_pass', ''))),
-      mailboxes: getSetting('imap_mailboxes', 'INBOX'),
-      since: getSetting('imap_since', ''),
-      available: mailbox.status.mailboxes
-    },
     website: {
       enabled: getSetting('website_enabled', '0') === '1',
       url: getSetting('website_url', 'https://guardiansindia.com'),
@@ -75,36 +69,6 @@ router.get('/settings', owner, (req, res) => {
       sharePhone: getSetting('share_contact_phone', '')
     }
   });
-});
-
-router.put('/settings/mailbox', owner, async (req, res) => {
-  const b = req.body || {};
-  const host = str(b.host, 120) || 'imap.gmail.com';
-  const port = Number(b.port) || 993;
-  const user = str(b.user, 160);
-  const pass = b.password ? String(b.password).replace(/\s+/g, '') : decryptSecret(getSetting('imap_pass', ''));
-  const enabled = Boolean(b.enabled);
-  if (enabled) {
-    if (!user || !pass) throw new HttpError(400, 'Enter the mailbox address and its app password.');
-    const test = await mailbox.testConnection({ host, port, user, pass });
-    if (!test.ok) throw new HttpError(400, 'Could not sign in to the mailbox: ' + test.error);
-  }
-  setSetting('imap_enabled', enabled ? '1' : '0');
-  setSetting('imap_host', host);
-  setSetting('imap_port', port);
-  setSetting('imap_user', user);
-  if (b.password) setSetting('imap_pass', encryptSecret(pass));
-  setSetting('imap_mailboxes', str(b.mailboxes, 500) || 'INBOX');
-  setSetting('imap_since', /^\d{4}-\d{2}-\d{2}$/.test(str(b.since)) ? str(b.since) : '');
-  audit(req, 'settings.mailbox', user, enabled ? 'on' : 'off');
-  await mailbox.restart();
-  res.json({ ok: true });
-});
-
-router.post('/settings/mailbox/test', owner, async (req, res) => {
-  const b = req.body || {};
-  const pass = b.password ? String(b.password).replace(/\s+/g, '') : decryptSecret(getSetting('imap_pass', ''));
-  res.json(await mailbox.testConnection({ host: str(b.host) || 'imap.gmail.com', port: Number(b.port) || 993, user: str(b.user), pass }));
 });
 
 router.put('/settings/website', owner, async (req, res) => {
