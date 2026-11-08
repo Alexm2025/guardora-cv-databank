@@ -295,7 +295,7 @@ export async function render(main, ctx) {
   }
 
   function sourceFilter(btn) {
-    checkList(btn, 'Came from', 'source', [['email', 'Email (mailboxes)'], ['website', 'Website'], ['whatsapp', 'WhatsApp'], ['upload', 'Added by hand']]);
+    checkList(btn, 'Came from', 'source', [['email', 'Email (mailboxes)'], ['website', 'Website'], ['upload', 'Added by hand']]);
   }
 
   function dateFilter(btn) {

@@ -7,7 +7,6 @@ const { encryptSecret, decryptSecret, hashPassword, passwordProblem } = require(
 const { getSetting } = require('../ingest');
 const mailbox = require('../sources/mailbox');
 const website = require('../sources/website');
-const whatsapp = require('../sources/whatsapp');
 const backup = require('../backup');
 
 const router = express.Router();
@@ -23,7 +22,6 @@ router.get('/sources', viewer, (req, res) => {
     ok: true,
     mailbox: mailbox.overall(),
     mailboxes: mailbox.statuses(),
-    whatsapp: { ...whatsapp.status, qr: '' },
     website: website.status,
     backup: { ...backup.status, latest: backup.list()[0] || null },
     counts: all("SELECT source, outcome, COUNT(*) AS n FROM ingest_log WHERE created_at >= ? GROUP BY source, outcome", new Date(Date.now() - 7 * 864e5).toISOString())
@@ -33,7 +31,6 @@ router.get('/sources', viewer, (req, res) => {
 router.post('/sources/sync', requireRole('recruiter'), (req, res) => {
   mailbox.sync();
   website.sync();
-  whatsapp.sync();
   res.json({ ok: true });
 });
 
@@ -41,7 +38,7 @@ router.get('/ingest-log', viewer, (req, res) => {
   const where = [];
   const params = [];
   if (['added', 'new_version', 'duplicate', 'skipped', 'error'].includes(req.query.outcome)) { where.push('outcome = ?'); params.push(req.query.outcome); }
-  if (['email', 'website', 'upload', 'whatsapp'].includes(req.query.source)) { where.push('source = ?'); params.push(req.query.source); }
+  if (['email', 'website', 'upload'].includes(req.query.source)) { where.push('source = ?'); params.push(req.query.source); }
   const w = where.length ? ' WHERE ' + where.join(' AND ') : '';
   const page = Math.max(1, Number(req.query.page) || 1);
   res.json({

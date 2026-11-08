@@ -168,7 +168,7 @@ async function ingestFile(input) {
 }
 
 const unique = (arr) => [...new Set(arr)];
-const sourceLabel = (s) => ({ email: 'email', website: 'the website', upload: 'manual upload', whatsapp: 'WhatsApp' })[s] || s;
+const sourceLabel = (s) => ({ email: 'email', website: 'the website', upload: 'manual upload' })[s] || s;
 
 function nameFromFile(fileName) {
   const base = fileName.replace(/\.[a-z0-9]+$/i, '').replace(/[_\-.]+/g, ' ').replace(/\b(cv|resume|updated|latest|new|final|biodata|profile|\d+)\b/gi, ' ').trim();

@@ -6,7 +6,10 @@
  * and every field someone corrected by hand, are kept.
  */
 
+const fs = require('node:fs');
+const path = require('node:path');
 const { all, run, tx, get } = require('./db');
+const { DATA_DIR } = require('./config');
 const { parseCv } = require('./extract/parse');
 const { fingerprint } = require('./match');
 const { refreshCandidate, parseJson } = require('./ingest');
@@ -29,7 +32,18 @@ function reparseAll() {
   return cvs.length;
 }
 
+// WhatsApp import was removed: delete any saved WhatsApp link so nothing stays connected.
+function removeWhatsAppLink() {
+  const dir = path.join(DATA_DIR, 'whatsapp-session');
+  if (fs.existsSync(dir)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    console.log('[upgrade] Removed the old WhatsApp link. Also remove "Guardora" from the phone: WhatsApp → Linked devices.');
+  }
+  run("DELETE FROM settings WHERE key LIKE 'whatsapp_%'");
+}
+
 function upgradeIfNeeded() {
+  removeWhatsAppLink();
   const current = Number((get("SELECT value FROM settings WHERE key = 'parser_version'") || {}).value || 1);
   if (current >= PARSER_VERSION) return 0;
   const started = Date.now();

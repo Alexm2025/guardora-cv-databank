@@ -74,8 +74,7 @@ function sourceStrip(s, owner) {
       fix ? h('span', { class: 'btn sm primary' }, st.state === 'disabled' ? 'Connect' : 'Fix') : h('span', { class: 'dot ' + tone }));
   };
   return h('div', { class: 'row wrap', style: { marginBottom: '16px', gap: '12px' } },
-    item('Mailboxes', s.mailbox, 'mail', 'mailboxes'), item('Website applications', s.website, 'globe', 'website'),
-    item('WhatsApp', { ...s.whatsapp, state: ({ connected: 'watching', waiting_qr: 'connecting', starting: 'connecting', reconnecting: 'connecting' })[s.whatsapp.state] || s.whatsapp.state }, 'chat', 'whatsapp'));
+    item('Mailboxes', s.mailbox, 'mail', 'mailboxes'), item('Website applications', s.website, 'globe', 'website'));
 }
 
 // Single-series bar chart: one hue, bars anchored to the baseline with 4px rounded tops, hover tooltip per bar.

@@ -236,7 +236,7 @@ export const fmtExp = (y) => (y == null ? '—' : y === 0 ? 'Fresher' : (Math.ro
 export const fmtSize = (b) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB');
 export const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '');
 export const initials = (name) => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
-export const sourceLabel = (s) => ({ email: 'Email', website: 'Website', upload: 'Upload', whatsapp: 'WhatsApp' })[s] || cap(s);
+export const sourceLabel = (s) => ({ email: 'Email', website: 'Website', upload: 'Upload' })[s] || cap(s);
 export const RISK = ['', 'Low', 'Medium', 'High'];
 
 // Wraps every occurrence of the search words in <mark>, safely (text nodes only).

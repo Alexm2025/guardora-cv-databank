@@ -93,7 +93,7 @@ function buildFilter(q) {
   if (q.hideBlacklisted === '1' && view !== 'blacklisted') where.push('c.blacklisted = 0');
   if (num(q.risk) != null) { where.push('c.risk >= ?'); params.push(num(q.risk)); }
 
-  const sources = list(q.source).filter((s) => ['email', 'website', 'upload', 'whatsapp'].includes(s));
+  const sources = list(q.source).filter((s) => ['email', 'website', 'upload'].includes(s));
   if (sources.length) {
     where.push('c.id IN (SELECT cv.candidate_id FROM cvs cv JOIN cv_sources s ON s.cv_id = cv.id WHERE s.source IN (' + sources.map(() => '?').join(',') + '))');
     params.push(...sources);

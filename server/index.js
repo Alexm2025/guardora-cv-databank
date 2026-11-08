@@ -11,7 +11,6 @@ const { SETUP_TOKEN } = require('./setup-token');
 const mailbox = require('./sources/mailbox');
 const website = require('./sources/website');
 const backup = require('./backup');
-const whatsapp = require('./sources/whatsapp');
 const campaigns = require('./campaigns');
 require('./maintenance').upgradeIfNeeded();
 
@@ -73,7 +72,6 @@ const shares = require('./routes/shares');
 api.use('/', shares.router);
 api.use('/public', shares.publicRouter);
 api.use('/', require('./routes/mail'));
-api.use('/', require('./routes/whatsapp'));
 api.use((req, res, next) => next(new HttpError(404, 'Not found.')));
 app.use('/api', api);
 
@@ -129,7 +127,6 @@ const server = app.listen(config.PORT, config.HOST, () => {
   if (!config.DISABLE_SOURCES) {
     mailbox.start();
     website.start();
-    whatsapp.start();
   }
   campaigns.start(); // scheduled emails (not a CV source: always on)
   backup.schedule();
@@ -144,7 +141,7 @@ async function shutdown() {
   server.close();
   website.stop();
   campaigns.stop();
-  await Promise.race([Promise.all([mailbox.stop(), whatsapp.stop()]), new Promise((r) => setTimeout(r, 3000))]);
+  await Promise.race([mailbox.stop(), new Promise((r) => setTimeout(r, 3000))]);
   process.exit(0);
 }
 process.on('SIGINT', shutdown);

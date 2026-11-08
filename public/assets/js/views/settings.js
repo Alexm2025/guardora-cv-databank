@@ -1,4 +1,4 @@
-// Settings: connect mailboxes, WhatsApp and the website, the team, sign-in security, backups and the audit log.
+// Settings: connect mailboxes and the website, the team, sign-in security, backups and the audit log.
 
 import { h, clear, icon, toast, modal, confirmBox, promptBox, fmtDate, ago, fmtSize } from '../ui.js';
 import { api, qs } from '../api.js';
@@ -6,7 +6,7 @@ import { api, qs } from '../api.js';
 export async function render(main, ctx) {
   const owner = ctx.user.role === 'owner';
   const SECTIONS = owner
-    ? [['mailboxes', 'Mailboxes'], ['whatsapp', 'WhatsApp'], ['website', 'Website'], ['team', 'Team'], ['security', 'My security'], ['backups', 'Backups'], ['audit', 'Audit log'], ['general', 'General']]
+    ? [['mailboxes', 'Mailboxes'], ['website', 'Website'], ['team', 'Team'], ['security', 'My security'], ['backups', 'Backups'], ['audit', 'Audit log'], ['general', 'General']]
     : [['security', 'My security']];
   const asked = ctx.parts[1] === 'mailbox' ? 'mailboxes' : ctx.parts[1]; // old links
   let current = SECTIONS.some(([k]) => k === asked) ? asked : SECTIONS[0][0];
@@ -24,7 +24,7 @@ export async function render(main, ctx) {
     clear(nav, SECTIONS.map(([k, l]) => h('button', { class: k === key ? 'active' : '', onclick: () => show(k) }, l)));
     clear(body, h('div', { class: 'center' }, h('div', { class: 'spinner' })));
     clearTimeout(settingsTimer);
-    ({ mailboxes, whatsapp, website, team, security, backups, audit, general })[key]().catch((err) => clear(body, h('div', { class: 'banner bad' }, err.message)));
+    ({ mailboxes, website, team, security, backups, audit, general })[key]().catch((err) => clear(body, h('div', { class: 'banner bad' }, err.message)));
   }
 
   const card = (title, intro, ...content) => h('section', { class: 'card section' }, h('div', {}, h('h2', {}, title), intro ? h('p', { class: 'muted', style: { margin: '6px 0 0' } }, intro) : null), ...content);
@@ -152,52 +152,6 @@ export async function render(main, ctx) {
         } }
       ]
     });
-  }
-
-  /* ---------- WhatsApp ---------- */
-
-  async function whatsapp() {
-    const r = await api('/whatsapp');
-    const st = r.status;
-    const tone = ({ connected: 'ok', waiting_qr: 'busy', starting: 'busy', reconnecting: 'busy', error: 'bad' })[st.state] || '';
-    const groups = h('input', { type: 'checkbox', checked: r.options.groups });
-    const history = h('input', { type: 'checkbox', checked: r.options.history });
-    const saveOptions = async () => {
-      await api('/whatsapp/options', { method: 'PUT', body: { groups: groups.checked, history: history.checked } });
-      toast('Saved');
-    };
-    groups.onchange = saveOptions;
-    history.onchange = saveOptions;
-    const connected = st.state === 'connected';
-    const busy = ['waiting_qr', 'starting', 'reconnecting'].includes(st.state);
-    clear(body,
-      card('WhatsApp', "Link a WhatsApp number to Guardora like WhatsApp Web. CV files people send to that number (PDF, Word) are imported automatically, with the sender's name and number.",
-        h('div', { class: 'banner warn' }, icon('alert'), h('div', {}, h('b', {}, 'Use a dedicated HR number. '),
-          'WhatsApp does not officially support linking other programs to normal or WhatsApp Business app numbers, so there is a small risk WhatsApp restricts the number. Guardora only reads: it never sends messages or marks chats as read. You can unlink it any time from the phone (Linked devices) or here.')),
-        h('div', { class: 'row' }, h('span', { class: 'dot ' + tone }), h('b', { class: 'grow' }, st.message),
-          connected && st.number ? h('span', { class: 'pill ok' }, icon('phone', 'sm'), st.number + (st.name ? ' · ' + st.name : '')) : null),
-        st.qr ? h('div', { class: 'stack', style: { justifyItems: 'center', gap: '8px' } },
-          h('img', { src: st.qr, alt: 'WhatsApp QR code', width: 260, height: 260, style: { background: '#fff', padding: '10px', borderRadius: '12px' } }),
-          h('ol', { class: 'steps' }, h('li', {}, 'Open WhatsApp on the HR phone.'), h('li', {}, 'Settings (or ⋮ menu) → Linked devices → Link a device.'), h('li', {}, 'Point the phone at this code.'))) : null,
-        st.imported ? h('div', { class: 'small muted' }, st.imported + ' CVs imported from WhatsApp since the server started' + (st.lastAt ? ', last ' + ago(st.lastAt) : '') + '.') : null,
-        st.lastError && !connected ? h('div', { class: 'tiny', style: { color: 'var(--bad)' } }, st.lastError) : null,
-        h('div', { class: 'row wrap' },
-          !connected && !busy ? h('button', { class: 'btn primary', onclick: async () => {
-            await api('/whatsapp/connect', { method: 'POST' });
-            setTimeout(() => whatsapp().catch(() => {}), 1500);
-          } }, icon('chat', 'sm'), r.linked ? 'Reconnect' : 'Connect WhatsApp') : null,
-          r.linked || connected || st.state === 'waiting_qr' ? h('button', { class: 'btn danger', onclick: async () => {
-            if (!await confirmBox('Unlink WhatsApp?', "Guardora stops importing CVs from WhatsApp and is removed from the phone's linked devices. CVs already imported stay.", { label: 'Unlink', kind: 'danger' })) return;
-            await api('/whatsapp/unlink', { method: 'POST' });
-            toast('Unlinked');
-            whatsapp();
-          } }, 'Unlink') : null)),
-      card('What to import', null,
-        h('label', { class: 'check' }, groups, 'Also import CVs posted in WhatsApp groups'),
-        h('label', { class: 'check' }, history, 'When first linked, also import CVs from recent chats (older files may no longer be available on WhatsApp)'),
-        h('p', { class: 'hint', style: { margin: 0 } }, 'Photos are imported only when the message says it is a CV or resume. Your own messages, statuses and channels are never imported.')));
-    clearTimeout(settingsTimer);
-    if (current === 'whatsapp' && busy) settingsTimer = setTimeout(() => current === 'whatsapp' && whatsapp().catch(() => {}), 2500);
   }
 
   /* ---------- Website ---------- */

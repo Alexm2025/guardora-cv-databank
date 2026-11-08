@@ -4,7 +4,6 @@ Guardora collects every CV that reaches The Guardians into one private, searchab
 
 - **Mailboxes** (`hr@guardiansindia.com` and as many others as you add: jobs@, careers@, Gmail, Zoho, Outlook…): stays
   connected around the clock, imports every CV attachment from past mail, then each new one as soon as it arrives.
-- **WhatsApp**: link a number like WhatsApp Web (scan a QR code once); CV files sent to it are imported automatically.
 - **Website** (`guardiansindia.com`): imports every job application with its CV and the details the applicant typed
   (CTC, expected CTC, notice period, job), plus resumes of registered job seekers.
 - **By hand**: drag CV files onto the app, or on Android share a CV from WhatsApp or Gmail straight into Guardora.
@@ -120,14 +119,6 @@ no email or on the blacklist are skipped. Emails go out through your own mailbox
 from this mailbox"; for Gmail the same app password works), so replies come back to you and copies appear in its Sent
 folder. A daily limit (default 400) keeps Gmail from blocking the account; the rest continue automatically the next day.
 Every email sent is recorded in the candidate's history.
-
-## Connect WhatsApp
-
-Settings → WhatsApp → **Connect WhatsApp**, then on the phone: WhatsApp → Settings → Linked devices → Link a device, and
-scan the code. CV files (PDF, Word) sent to that number are imported with the sender's name and number; photos only when
-the message says it is a CV. Groups are off unless you turn them on. Guardora never sends WhatsApp messages.
-WhatsApp does not officially support third-party linked devices on normal or WhatsApp Business app numbers, so use a
-dedicated HR number. Unlink any time from the phone or from Guardora.
 
 ## Connect the website
 

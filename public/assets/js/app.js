@@ -89,8 +89,7 @@ async function refreshCounts() {
       const dot = (s) => ({ watching: 'ok', syncing: 'busy', connecting: 'busy', error: 'bad' })[s] || '';
       clear(src,
         h('div', {}, h('span', { class: 'dot ' + dot(c.mailbox) }), 'Mail import · ' + label(c.mailbox)),
-        h('div', {}, h('span', { class: 'dot ' + dot(c.website) }), 'Website · ' + label(c.website)),
-        h('div', {}, h('span', { class: 'dot ' + dot(({ connected: 'watching', waiting_qr: 'connecting', starting: 'connecting', reconnecting: 'connecting' })[c.whatsapp] || c.whatsapp) }), 'WhatsApp · ' + label(({ connected: 'watching', waiting_qr: 'connecting', starting: 'connecting', reconnecting: 'connecting' })[c.whatsapp] || c.whatsapp)));
+        h('div', {}, h('span', { class: 'dot ' + dot(c.website) }), 'Website · ' + label(c.website)));
     }
   } catch { /* offline: keep the last values */ }
 }

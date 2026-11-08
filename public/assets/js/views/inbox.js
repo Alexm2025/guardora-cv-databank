@@ -14,7 +14,7 @@ export async function render(main, ctx) {
 
   clear(main, h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('div', { class: 'grow' }, h('h1', {}, 'Sources'),
-      h('p', {}, 'Guardora runs day and night: it is told about new mail and WhatsApp messages the moment they arrive, and checks the website every 5 minutes.')),
+      h('p', {}, 'Guardora runs day and night: it is told about new mail the moment it arrives, and checks the website every 5 minutes.')),
     ctx.user.role !== 'viewer' ? h('button', { class: 'btn', onclick: async () => { await api('/sources/sync', { method: 'POST' }); toast('Checking now…'); setTimeout(drawStatus, 1500); } }, icon('refresh'), 'Check now') : null),
     cards, h('h2', { style: { margin: '26px 0 12px' } }, 'Import log'), logBox));
 
@@ -37,7 +37,6 @@ export async function render(main, ctx) {
     clear(cards,
       s.mailboxes.length ? s.mailboxes.filter((m) => m.import_enabled).map((m) => src(m.email + (m.label ? ' — ' + m.label : ''), 'mail', m, ''))
         : src('Mailboxes', 'mail', s.mailbox, 'Connect hr@guardiansindia.com (and any other mailbox) in Settings → Mailboxes.'),
-      src('WhatsApp', 'chat', { ...s.whatsapp, state: ({ connected: 'watching', waiting_qr: 'connecting', starting: 'connecting', reconnecting: 'connecting' })[s.whatsapp.state] || s.whatsapp.state }, 'Link a WhatsApp number in Settings → WhatsApp.'),
       src('Website applications', 'globe', s.website, 'Connect guardiansindia.com in Settings → Website.'),
       h('div', { class: 'card src' }, h('span', { class: 'src-icon' }, icon('shield', 'lg')),
         h('div', { class: 'stack', style: { gap: '4px' } }, h('h3', {}, 'Backups'),
@@ -54,7 +53,7 @@ export async function render(main, ctx) {
         Object.entries(OUTCOMES).map(([k, [l]]) => filterBtn(l, outcome, k, (v) => { outcome = v; })),
         h('span', { class: 'spacer' }),
         h('select', { class: 'input', style: { width: 'auto', minHeight: '32px', fontSize: '13px' }, onchange: (e) => { source = e.target.value; page = 1; drawLog(); } },
-          [['', 'All sources'], ['email', 'Email'], ['website', 'Website'], ['whatsapp', 'WhatsApp'], ['upload', 'Upload']].map(([v, l]) => h('option', { value: v, selected: source === v }, l)))),
+          [['', 'All sources'], ['email', 'Email'], ['website', 'Website'], ['upload', 'Upload']].map(([v, l]) => h('option', { value: v, selected: source === v }, l)))),
       r.items.length ? h('div', { style: { overflowX: 'auto' } }, h('table', { class: 'log' },
         h('thead', {}, h('tr', {}, h('th', {}, 'When'), h('th', {}, 'Source'), h('th', {}, 'Result'), h('th', {}, 'Details'))),
         h('tbody', {}, r.items.map((l) => h('tr', {},
