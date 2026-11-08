@@ -100,7 +100,11 @@ async function ingestFile(input) {
   const form = input.form || {};
   const emails = unique([form.email, ...parsed.emails].map((e) => String(e || '').toLowerCase().trim()).filter((e) => e && !isOwnAddress(e)));
   const phones = unique([normalizePhone(form.phone), ...parsed.phones].filter(Boolean));
-  if (!emails.length && !phones.length && input.sender && !isOwnAddress(input.sender)) emails.push(String(input.sender).toLowerCase());
+  // The sender identifies the person only when the CV itself has no contact details (CVs are often forwarded).
+  if (!emails.length && !phones.length) {
+    if (input.senderPhone && normalizePhone(input.senderPhone)) phones.push(normalizePhone(input.senderPhone));
+    else if (input.sender && /@/.test(input.sender) && !isOwnAddress(input.sender)) emails.push(String(input.sender).toLowerCase());
+  }
   const name = form.name || parsed.name || (input.senderName && !isOwnAddress(input.sender || '') ? input.senderName : '') || nameFromFile(fileName);
   Object.assign(parsed, {
     name, emails, phones,
@@ -164,7 +168,7 @@ async function ingestFile(input) {
 }
 
 const unique = (arr) => [...new Set(arr)];
-const sourceLabel = (s) => ({ email: 'email', website: 'the website', upload: 'manual upload' })[s] || s;
+const sourceLabel = (s) => ({ email: 'email', website: 'the website', upload: 'manual upload', whatsapp: 'WhatsApp' })[s] || s;
 
 function nameFromFile(fileName) {
   const base = fileName.replace(/\.[a-z0-9]+$/i, '').replace(/[_\-.]+/g, ' ').replace(/\b(cv|resume|updated|latest|new|final|biodata|profile|\d+)\b/gi, ' ').trim();
@@ -173,7 +177,7 @@ function nameFromFile(fileName) {
 
 function addSource(cvId, input, receivedAt) {
   run(`INSERT OR IGNORE INTO cv_sources (cv_id, source, ref, received_at, sender, subject, job_title, meta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    cvId, input.source, String(input.ref || ''), receivedAt, String(input.sender || '').slice(0, 200), String(input.subject || '').slice(0, 300),
+    cvId, input.source, String(input.ref || ''), receivedAt, String(input.sender || input.senderPhone || '').slice(0, 200), String(input.subject || '').slice(0, 300),
     String(input.jobTitle || '').slice(0, 200), JSON.stringify(input.meta || {}));
 }
 
@@ -269,6 +273,8 @@ const PROFILE_FIELDS = {
   city: (p) => p.city,
   state: (p) => p.state,
   address: (p) => p.address,
+  area: (p) => p.area,
+  region: (p) => p.region,
   education_level: (p) => p.educationLevel || null,
   education: (p) => (p.education && p.education.length ? JSON.stringify(p.education) : null),
   skills: (p) => (p.skills && p.skills.length ? JSON.stringify(p.skills) : null),
@@ -360,7 +366,7 @@ function reindex(candidateId, cvs) {
     candidateId,
     ftsClean(c.name),
     ftsClean([...parseJson(c.emails, []), ...parseJson(c.phones, []), c.phone].join(' ')),
-    ftsClean([c.city, c.state, c.address].join(' ')),
+    ftsClean([c.area, c.region, c.city, c.state, c.address].join(' ')),
     ftsClean([level, ...edu.map((e) => [e.degree, e.field, e.institution].join(' '))].join(' ')),
     ftsClean([...parseJson(c.skills, []), ...parseJson(c.tags, [])].join(' , ')),
     ftsClean([c.current_title, c.current_company, c.applied_for, ...exp.map((e) => e.title + ' ' + e.company)].join(' ')),
