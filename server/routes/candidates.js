@@ -10,6 +10,7 @@ const { lineDiff } = require('../diff');
 const { compareVersions } = require('../fraud');
 const { formatPhone, normalizePhone } = require('../extract/parse');
 const { nameKey } = require('../match');
+const { areaInfo } = require('../extract/areas');
 const { MAX_UPLOAD_MB } = require('../config');
 const {
   ingestFile, refreshCandidate, refreshRisk, reindex, mergeCandidates, splitCv, deleteCandidate, addEvent, parseJson
@@ -86,6 +87,7 @@ const EDITABLE = {
   dob: (v) => (/^\d{4}-\d{2}-\d{2}$/.test(str(v)) || !str(v) ? str(v) : (() => { throw new HttpError(400, 'Date of birth must be YYYY-MM-DD.'); })()),
   gender: (v) => (['male', 'female', 'other', ''].includes(str(v)) ? str(v) : ''),
   city: (v) => str(v, 80),
+  area: (v) => { const a = areaInfo(str(v, 80)); return a ? a.name : str(v, 80); },
   state: (v) => str(v, 80),
   address: (v) => str(v, 300),
   education_level: (v) => Math.max(0, Math.min(8, Number(v) || 0)),
@@ -115,6 +117,7 @@ router.patch('/candidates/:id', editor, (req, res) => {
     if (age >= 14 && age <= 90) { row.birth_year = new Date().getUTCFullYear() - age; edited.add('birth_year'); }
   }
   if ('name' in row) row.name_key = nameKey(row.name);
+  if ('area' in row) { const a = areaInfo(row.area); row.region = a ? a.region : ''; edited.add('region'); }
   if ('tags' in body) row.tags = JSON.stringify([...new Set((Array.isArray(body.tags) ? body.tags : []).map((t) => str(t, 30)).filter(Boolean))].slice(0, 20));
   row.edited_fields = JSON.stringify([...edited]);
   row.updated_at = now();

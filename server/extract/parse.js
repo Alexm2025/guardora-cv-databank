@@ -6,6 +6,16 @@
  */
 
 const { DEGREES, CITIES, CITY_ALIASES, STATES, SKILLS, CV_WORDS, LANGUAGES } = require('./dictionary');
+const { findArea } = require('./areas');
+
+const REGION_STATE = { Bengaluru: 'Karnataka', Hyderabad: 'Telangana' };
+// Districts that people write as their "city", and the areas inside them.
+const DISTRICT_REGIONS = {
+  Thane: ['Kalyan-Dombivli', 'Ulhasnagar-Ambernath-Badlapur', 'Bhiwandi', 'Karjat-Kasara', 'Mira-Bhayandar'],
+  Palghar: ['Vasai-Virar'],
+  Raigad: ['Panvel', 'Karjat-Kasara'],
+  'Navi Mumbai': ['Panvel']
+};
 
 const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12 };
 const MONTH_RE = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
@@ -203,6 +213,28 @@ function findLocation(lines, sections) {
   for (const [a, b] of sections.personal || []) scored.push({ text: lines.slice(a, b).join(' '), weight: 1, address: '' });
   scored.sort((x, y) => y.weight - x.weight);
 
+  const place = cityFrom(scored);
+  // The locality (Mulund, Kharghar, Hinjewadi…) from the same address text, most relevant text first.
+  let area = null;
+  for (const s of scored) {
+    area = findArea(s.text);
+    if (area) break;
+  }
+  if (area) {
+    const areaState = REGION_STATE[area.region] || 'Maharashtra';
+    if (!place.city) {
+      place.city = area.city;
+      place.state = place.state || areaState;
+    } else if (place.state && areaState && place.state !== areaState) {
+      area = null; // e.g. "Fort" in a Kochi address: not Mumbai's Fort
+    } else if ((DISTRICT_REGIONS[place.city] || []).includes(area.region)) {
+      place.city = area.city; // "Badlapur, Thane district": the town is more precise than the district
+    }
+  }
+  return { ...place, area: area ? area.name : '', region: area ? area.region : '' };
+}
+
+function cityFrom(scored) {
   for (const s of scored) {
     const c = s.text.match(CITY_RE);
     if (c) {
@@ -215,7 +247,7 @@ function findLocation(lines, sections) {
     const st = s.text.match(STATE_RE);
     if (st) return { city: '', state: STATES.find((x) => x.toLowerCase() === st[1].toLowerCase()), address: s.address.slice(0, 200) };
   }
-  return { city: '', state: '', address: '' };
+  return { city: '', state: '', address: (scored.find((s) => s.address) || {}).address || '' };
 }
 
 /* ---------- Education ---------- */
@@ -469,6 +501,8 @@ function parseCv(text, { receivedAt = new Date().toISOString() } = {}) {
     city: loc.city,
     state: loc.state,
     address: loc.address,
+    area: loc.area,
+    region: loc.region,
     education: edu.education,
     educationLevel: edu.level,
     skills: findSkills(source, trimmed, sections),

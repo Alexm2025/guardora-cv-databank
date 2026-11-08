@@ -34,6 +34,15 @@ const FIRST_M = ['Rahul', 'Amit', 'Rohan', 'Vikram', 'Suresh', 'Arjun', 'Karan',
 const LAST = ['Sharma', 'Patil', 'Deshmukh', 'Iyer', 'Nair', 'Kulkarni', 'Joshi', 'Gupta', 'Verma', 'Shaikh', 'Pawar', 'Reddy', 'Menon', 'Mehta', 'Shah', 'Jadhav', 'Singh', 'Chavan', 'Pillai', 'Banerjee', 'Kamble', 'Rao', 'Desai', 'More'];
 const CITIES = [['Thane', 'Maharashtra'], ['Mumbai', 'Maharashtra'], ['Navi Mumbai', 'Maharashtra'], ['Pune', 'Maharashtra'], ['Kalyan', 'Maharashtra'], ['Nashik', 'Maharashtra'],
   ['Bengaluru', 'Karnataka'], ['Hyderabad', 'Telangana'], ['Ahmedabad', 'Gujarat'], ['Delhi', 'Delhi'], ['Gurugram', 'Haryana'], ['Chennai', 'Tamil Nadu'], ['Nagpur', 'Maharashtra'], ['Indore', 'Madhya Pradesh']];
+// Real localities, so the area and railway-line filters have something to show.
+const LOCALITIES = {
+  Mumbai: ['Mulund', 'Bhandup', 'Vikhroli', 'Ghatkopar', 'Kurla', 'Chembur', 'Powai', 'Andheri', 'Goregaon', 'Malad', 'Kandivali', 'Borivali', 'Dadar', 'Sion', 'Wadala', 'Bandra', 'Govandi'],
+  Thane: ['Kalwa', 'Mumbra', 'Ghodbunder Road', 'Majiwada', 'Wagle Estate', 'Naupada'],
+  'Navi Mumbai': ['Vashi', 'Nerul', 'Kharghar', 'Airoli', 'Ghansoli', 'Kopar Khairane', 'Belapur', 'Sanpada', 'Ulwe'],
+  Kalyan: ['Kalyan', 'Dombivli', 'Thakurli', 'Titwala'],
+  Pune: ['Hinjewadi', 'Wakad', 'Baner', 'Kothrud', 'Hadapsar', 'Viman Nagar']
+};
+
 const ROLES = {
   accounts: { titles: ['Accounts Executive', 'Senior Accountant', 'Accounts Assistant', 'Finance Executive'], skills: ['Tally Prime', 'GST', 'TDS', 'Advanced Excel', 'Accounts Payable', 'Bank Reconciliation', 'SAP FICO', 'Payroll', 'MIS Reporting', 'Zoho Books', 'VLOOKUP'], degrees: [['B.Com', 'M.Com', 'MBA (Finance)'], ['B.Com'], ['BAF', 'M.Com']] },
   hr: { titles: ['HR Executive', 'Talent Acquisition Specialist', 'HR Generalist', 'Recruiter'], skills: ['Recruitment', 'Onboarding', 'Payroll', 'Employee Engagement', 'Naukri', 'Statutory Compliance', 'HRMS', 'Bulk Hiring', 'MS Excel'], degrees: [['BBA', 'MBA (HR)'], ['B.A.', 'MSW'], ['B.Com', 'PGDM']] },
@@ -75,7 +84,7 @@ function person(i) {
     phone: String(int(7, 9)) + String(int(10000, 99999)) + String(i).padStart(4, '0'),
     skills: some(role.skills, int(4, 8)), score: int(55, 88),
     colleges: degrees.map(() => pick(COLLEGES)), hsc: int(55, 85), dob: [int(1, 28), int(1, 12)],
-    address: int(1, 400) + ', ' + pick(['Shanti Nagar', 'Gandhi Road', 'MG Road', 'Station Road', 'Lake View CHS']) + ', ' + city + ' - ' + int(400001, 499999) + ', ' + state,
+    address: int(1, 400) + ', ' + pick(['Shanti Nagar', 'Gandhi Road', 'Station Road', 'Lake View CHS', 'Sai Krupa CHS']) + ', ' + (LOCALITIES[city] ? pick(LOCALITIES[city]) + ' ' + pick(['East', 'West', '']) + ', ' : '') + city + ' - ' + int(400001, 499999) + ', ' + state,
     notice: pick(['Immediate', '15 days', '30 days', '60 days', '90 days'])
   };
 }

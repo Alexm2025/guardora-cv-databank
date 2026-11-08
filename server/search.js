@@ -7,6 +7,7 @@
 
 const { all, get } = require('./db');
 const { normalizePhone } = require('./extract/parse');
+const { areaInfo, placesOnLines, placesNear } = require('./extract/areas');
 
 const STATUSES = ['new', 'reviewing', 'shortlisted', 'interview', 'placed', 'on_hold', 'rejected'];
 
@@ -59,6 +60,16 @@ function buildFilter(q) {
   }
   const cities = list(q.city);
   if (cities.length) { where.push('c.city IN (' + cities.map(() => '?').join(',') + ')'); params.push(...cities); }
+  // Areas: picked by name, by railway line, or "within N stations of".
+  const places = new Set(list(q.area).map((a) => (areaInfo(a) || {}).name || a));
+  for (const p of placesOnLines(list(q.line))) places.add(p);
+  if (q.near) for (const p of placesNear(String(q.near).slice(0, 60), q.stops === undefined || q.stops === '' ? 2 : q.stops)) places.add(p);
+  if (places.size) {
+    const names = [...places].slice(0, 400);
+    // A known area decides; when the CV's area could not be read, look for the place names in the address text.
+    where.push('(c.area IN (' + names.map(() => '?').join(',') + ") OR (c.area = '' AND c.id IN (SELECT rowid FROM candidate_fts WHERE candidate_fts MATCH ?)))");
+    params.push(...names, 'location : (' + names.map((n) => '"' + n.replace(/"/g, '') + '"').join(' OR ') + ')');
+  }
   const states = list(q.state);
   if (states.length) { where.push('c.state IN (' + states.map(() => '?').join(',') + ')'); params.push(...states); }
   if (num(q.eduMin) != null) { where.push('c.education_level >= ?'); params.push(num(q.eduMin)); }
@@ -82,7 +93,7 @@ function buildFilter(q) {
   if (q.hideBlacklisted === '1' && view !== 'blacklisted') where.push('c.blacklisted = 0');
   if (num(q.risk) != null) { where.push('c.risk >= ?'); params.push(num(q.risk)); }
 
-  const sources = list(q.source).filter((s) => ['email', 'website', 'upload'].includes(s));
+  const sources = list(q.source).filter((s) => ['email', 'website', 'upload', 'whatsapp'].includes(s));
   if (sources.length) {
     where.push('c.id IN (SELECT cv.candidate_id FROM cvs cv JOIN cv_sources s ON s.cv_id = cv.id WHERE s.source IN (' + sources.map(() => '?').join(',') + '))');
     params.push(...sources);
@@ -116,7 +127,7 @@ function fromClause(fts) {
 const LIST_COLUMNS = `c.id, c.name, c.email, c.phone, c.birth_year, c.dob, c.gender, c.city, c.state, c.education_level, c.degrees,
   c.skills, c.experience_years, c.current_title, c.current_company, c.applied_for, c.status, c.done, c.done_at, c.blacklisted,
   c.starred, c.rating, c.risk, c.open_flags, c.cv_count, c.last_seen_at, c.first_seen_at, c.last_source, c.tags, c.latest_cv_id,
-  c.notice_period, c.expected_ctc,
+  c.notice_period, c.expected_ctc, c.area, c.region,
   (SELECT kind FROM cvs WHERE id = c.latest_cv_id) AS cv_kind,
   (SELECT needs_review FROM cvs WHERE id = c.latest_cv_id) AS needs_review`;
 
@@ -147,6 +158,7 @@ function facets(q) {
     education: all('SELECT education_level AS value, COUNT(*) AS n FROM candidates WHERE id IN (' + base + ') GROUP BY education_level ORDER BY value DESC', ...p),
     city: all("SELECT city AS value, state, COUNT(*) AS n FROM candidates WHERE city != '' AND id IN (" + base + ') GROUP BY city ORDER BY n DESC LIMIT 40', ...p),
     state: all("SELECT state AS value, COUNT(*) AS n FROM candidates WHERE state != '' AND id IN (" + base + ') GROUP BY state ORDER BY n DESC LIMIT 40', ...p),
+    area: all("SELECT area AS value, region, COUNT(*) AS n FROM candidates WHERE area != '' AND id IN (" + base + ') GROUP BY area ORDER BY n DESC LIMIT 300', ...p),
     skills: all('SELECT skill AS value, COUNT(*) AS n FROM candidate_skills WHERE candidate_id IN (' + base + ') GROUP BY skill COLLATE NOCASE ORDER BY n DESC LIMIT 60', ...p),
     status: all('SELECT status AS value, COUNT(*) AS n FROM candidates WHERE id IN (' + base + ') GROUP BY status ORDER BY n DESC', ...p)
   };
