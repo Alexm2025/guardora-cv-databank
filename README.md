@@ -1,6 +1,33 @@
-# Guardora — The Guardians CV Databank
+# Guardora — CV Databank for a recruitment agency
 
-Guardora collects every CV that reaches The Guardians into one private, searchable databank:
+Guardora collects every CV a recruitment agency receives — from its mailboxes, its website and by hand — into one
+private, searchable, encrypted databank. It recognises returning candidates, flags CVs whose history was rewritten,
+searches by Mumbai locality and railway line, emails candidates in bulk on a schedule, and shares shortlists with
+client companies without revealing candidates' contact details. Built for The Guardians (guardiansindia.com).
+
+![Overview](docs/screenshots/overview.png)
+
+| | |
+| --- | --- |
+| ![Candidates with the CV beside the list](docs/screenshots/candidates.png) | ![Two versions of a CV compared](docs/screenshots/fraud-compare.png) |
+| **Candidates** — instant search and filters, the CV opens beside the list | **Fraud checks** — a returning candidate's new CV compared with the old one |
+| ![Area and railway-line filter](docs/screenshots/location-filter.png) | ![Bulk email](docs/screenshots/email.png) |
+| **Location** — by area, railway line, or "within N stations of" | **Bulk email** — written once, personal copy per candidate, now or scheduled |
+| ![Shortlist for a client company](docs/screenshots/shortlist.png) | ![On a phone](docs/screenshots/mobile.png) |
+| **Shortlists** — what a client company sees: no phone, email or address | **Phone** — installs as an app on Android, iPhone and desktop |
+
+*All people in the screenshots and test data are fictional: emails use the reserved `.test` domain and phone numbers
+use the UK range reserved for drama (07700 900xxx).*
+
+**Stack:** Node.js (Express 5), SQLite with FTS5 full-text search, IMAP IDLE (imapflow), SMTP (nodemailer), pdf.js,
+a dependency-free browser app (PWA). No build step. AES-256-GCM encryption at rest, scrypt passwords, TOTP two-step
+sign-in. `npm test` runs 30+ end-to-end tests.
+
+© 2026 Alex Mathew. All rights reserved. This repository is public to show the project; it is not licensed for reuse.
+
+---
+
+## What it collects
 
 - **Mailboxes** (`hr@guardiansindia.com` and as many others as you add: jobs@, careers@, Gmail, Zoho, Outlook…): stays
   connected around the clock, imports every CV attachment from past mail, then each new one as soon as it arrives.
@@ -8,8 +35,8 @@ Guardora collects every CV that reaches The Guardians into one private, searchab
   (CTC, expected CTC, notice period, job), plus resumes of registered job seekers.
 - **By hand**: drag CV files onto the app, or on Android share a CV from WhatsApp or Gmail straight into Guardora.
 
-It runs on a server, so it keeps collecting while your laptop is off. You open it from a laptop, an Android phone or
-an iPhone; it installs like an app.
+It runs on a server (or an always-on PC), so it keeps collecting while your laptop is off. You open it from a laptop,
+an Android phone or an iPhone; it installs like an app.
 
 ## What it does with each CV
 

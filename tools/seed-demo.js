@@ -80,8 +80,9 @@ function person(i) {
   }
   return {
     i, female, name: first + ' ' + last, city, state, domain, role, birthYear, gradYear, degrees, jobs,
-    email: (first + '.' + last + (i > 20 ? i : '')).toLowerCase() + '@' + pick(['gmail.com', 'gmail.com', 'yahoo.com', 'outlook.com', 'rediffmail.com']),
-    phone: String(int(7, 9)) + String(int(10000, 99999)) + String(i).padStart(4, '0'),
+    // Safe to show publicly: .test is a reserved domain, and 07700 900xxx is the UK range reserved for fiction.
+    email: (first + '.' + last + (i > 20 ? i : '')).toLowerCase() + '@mail.test',
+    phone: '7700900' + String(i % 1000).padStart(3, '0'),
     skills: some(role.skills, int(4, 8)), score: int(55, 88),
     colleges: degrees.map(() => pick(COLLEGES)), hsc: int(55, 85), dob: [int(1, 28), int(1, 12)],
     address: int(1, 400) + ', ' + pick(['Shanti Nagar', 'Gandhi Road', 'Station Road', 'Lake View CHS', 'Sai Krupa CHS']) + ', ' + (LOCALITIES[city] ? pick(LOCALITIES[city]) + ' ' + pick(['East', 'West', '']) + ', ' : '') + city + ' - ' + int(400001, 499999) + ', ' + state,
@@ -96,7 +97,7 @@ function cvLines(p, { upTo = null, tweak = {} } = {}) {
   if (tweak.extraJob) jobs.unshift(tweak.extraJob);
   const totalMonths = jobs.reduce((s, j) => s + ((j.end ?? (upTo || 2026 * 12 + 9)) - j.start), 0);
   const years = tweak.claimYears ?? Math.round(totalMonths / 12);
-  const lines = [p.name.toUpperCase(), 'Email: ' + p.email + ' | Mobile: +91 ' + p.phone.slice(0, 5) + ' ' + p.phone.slice(5),
+  const lines = [p.name.toUpperCase(), 'Email: ' + p.email + ' | Mobile: +44 ' + p.phone.slice(0, 4) + ' ' + p.phone.slice(4),
     'Address: ' + p.address, '',
     'Profile Summary', (years ? p.role.titles[0] + ' with ' + years + ' years of experience' : 'Fresher') + ' in ' + p.skills.slice(0, 3).join(', ') + '.', '',
     'Work Experience'];
